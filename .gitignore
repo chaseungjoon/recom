@@ -1,8 +1,8 @@
-.agents/
-.claude/
-agent/
+/.agents/
+/.claude/
+/agent/
 
-PLAN.md
+/PLAN.md
 
 # build outputs
 /bin/
