@@ -57,6 +57,16 @@ RTX 5070 over Tailscale.
 | Client macOS arm64/amd64 | built and unit-tested in CI on macOS; **not** run against a live backend from a Mac during this release |
 | Backend linux/arm64 | helper built and embedded; not exercised live |
 
+## Release v0.1.0
+
+- Built, tested and published by the tag workflow, which re-downloads its own
+  assets, checks `checksums.txt` and runs the linux/amd64 binary.
+- The published linux/arm64 archive was downloaded on the Pi, checksum-verified,
+  and passed the full demo (17 steps) and the 12 interactive checks.
+- `brew tap chaseungjoon/recom && brew trust chaseungjoon/recom && brew install recom`
+  plus `brew test recom` verified in the official `homebrew/brew` container
+  (Linux arm64). The macOS formula paths were not installed on a real Mac.
+
 ## GPU
 
 `recom nvidia-smi` and a CUDA PyTorch matmul (torch 2.14.1+cu130, installed by

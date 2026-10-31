@@ -58,6 +58,7 @@ release:
 
     ```sh
     brew tap chaseungjoon/recom
+    brew trust chaseungjoon/recom   # required once by current Homebrew for third-party taps
     brew install recom
     ```
 

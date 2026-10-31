@@ -7,6 +7,7 @@ Add `-v` to any command to see the exact ssh and rsync invocations.
 |---|---|
 | `cannot connect to <host>` (exit 255) | Make sure `ssh <target> true` works without recom. With Tailscale, check `tailscale status` on both machines. recom never accepts unknown host keys for you: run `ssh <target>` once to accept the key. |
 | Asked for a passphrase every run | Load the key into your agent (`ssh-add`, or `UseKeychain yes` + `AddKeysToAgent yes` on macOS). recom reuses one multiplexed connection for ~2 minutes. |
+| `Refusing to load formula … from untrusted tap` | Current Homebrew asks you to trust third-party taps once: `brew trust chaseungjoon/recom`, then `brew install recom`. |
 | `no usable local rsync` on macOS | macOS ships openrsync / rsync 2.6.9. Run `brew install rsync` (the Homebrew formula depends on it). |
 | `rsync … protocol data stream` / doctor warns about shell output | Your shell rc file prints text for non-interactive logins. Wrap it in an interactive-only guard, e.g. `[[ $- == *i* ]] && echo …`. |
 | `command not found on the backend` (127) | The program is not on the remote `PATH` in the environment recom uses. Check `recom env`; set `[run] path`, `env_mode` or `wrapper` (see [configuration](configuration.md#remote-environment)). |

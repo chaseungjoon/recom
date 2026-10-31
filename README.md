@@ -23,6 +23,7 @@ recom: ← outputs/result.json (96 B)
 
 ```sh
 brew tap chaseungjoon/recom
+brew trust chaseungjoon/recom   # current Homebrew requires this once for third-party taps
 brew install recom
 ```
 
