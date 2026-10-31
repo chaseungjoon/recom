@@ -276,6 +276,12 @@
       "sourceType": "github",
       "skillPath": "skills/golang-uber-fx/SKILL.md",
       "computedHash": "e08067cdc0bb745483dafe455d71b9f3172d5ef488be829bbce34b0526d3c541"
+    },
+    "good-readme": {
+      "source": "adewale/good-readme",
+      "sourceType": "github",
+      "skillPath": "skills/good-readme/SKILL.md",
+      "computedHash": "0224c333177e3573051ce17304ea7d9ac923b56aa8707ce35a91026457194048"
     }
   }
 }
