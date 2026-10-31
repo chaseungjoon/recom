@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/chaseungjoon/recom/internal/collect"
@@ -88,12 +88,10 @@ func (a *app) localName(ws *config.Workspace, p string) string {
 	if ws.Rel == "." || ws.Rel == "" {
 		return p
 	}
-	prefix := ws.Rel + "/"
-	if strings.HasPrefix(p, prefix) {
-		return p[len(prefix):]
+	if r, err := filepath.Rel(filepath.FromSlash(ws.Rel), filepath.FromSlash(p)); err == nil {
+		return filepath.ToSlash(r)
 	}
-	ups := strings.Repeat("../", strings.Count(ws.Rel, "/")+1)
-	return path.Clean(ups + p)
+	return p
 }
 
 func (a *app) reportHeld(ws *config.Workspace, held []protocol.Output) {

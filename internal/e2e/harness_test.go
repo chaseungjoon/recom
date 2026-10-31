@@ -73,9 +73,14 @@ func setup() (int, error) {
 	env.recom = filepath.Join(d, "bin", "recom")
 	env.helper = filepath.Join(d, "bin", "recom-helper")
 	build := func(out, pkg string, extra ...string) error {
+		cgo := "CGO_ENABLED=0"
+		if os.Getenv("RECOM_E2E_RACE") != "" { // race-instrumented binaries
+			extra = append([]string{"-race"}, extra...)
+			cgo = "CGO_ENABLED=1"
+		}
 		cmd := exec.Command("go", append([]string{"build", "-o", out}, append(extra, pkg)...)...)
 		cmd.Dir = root
-		cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+		cmd.Env = append(os.Environ(), cgo)
 		if b, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("build %s: %v\n%s", pkg, err, b)
 		}

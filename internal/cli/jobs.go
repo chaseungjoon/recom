@@ -141,7 +141,8 @@ func attachCmd(gf *globalFlags) *cobra.Command {
 		Use:   "attach <job-id>",
 		Short: "Attach to a running detached job (tmux); otherwise follow its logs",
 		Long: `Attach your terminal to a running detached job's tmux session. Detach again
-with Ctrl-b d; the job keeps running. Ctrl-C is delivered to the job.
+with the backend's tmux prefix then d (Ctrl-b d by default; recom prints the
+actual key); the job keeps running. Ctrl-C is delivered to the job.
 
 Jobs started without tmux (not installed on the backend) cannot take input:
 attach then follows their logs. For a finished job, attach prints its log.`,
@@ -161,10 +162,18 @@ attach then follows their logs. For a finished job, attach prints its log.`,
 			switch {
 			case j.State == protocol.JobRunning && j.Tmux:
 				conn.Close()
-				a.info("attaching to job %s on %s — detach with Ctrl-b d (the job keeps running)", j.ID, t.Name)
+				prefix := j.Prefix
+				if prefix == "" {
+					prefix = "C-b"
+				}
+				a.info("attaching to job %s on %s — detach with %s then d (the job keeps running)", j.ID, t.Name, prefix)
 				remoteCmd := sshx.Quote(j.TmuxPath) + " -L " + sshx.Quote(j.Socket) + " attach-session -t " + sshx.Quote("="+j.Session)
 				c := t.Command(a.ctx, true, remoteCmd)
 				c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+				if tv := os.Getenv("TERM"); tv == "" || tv == "dumb" {
+					// tmux refuses to attach to a terminal it cannot drive.
+					c.Env = append(os.Environ(), "TERM=xterm-256color")
+				}
 				if err := c.Run(); err != nil {
 					var ee *exec.ExitError
 					if errors.As(err, &ee) {

@@ -292,6 +292,7 @@ type JobInfo struct {
 	TmuxPath  string    `json:"tmux_path,omitempty"`
 	Session   string    `json:"session,omitempty"`
 	Socket    string    `json:"socket,omitempty"`
+	Prefix    string    `json:"tmux_prefix,omitempty"` // the backend's tmux prefix key, e.g. "C-b"
 	PID       int       `json:"pid,omitempty"`
 	Pending   int       `json:"pending"`
 	Message   string    `json:"message,omitempty"`

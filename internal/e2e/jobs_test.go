@@ -3,6 +3,7 @@ package e2e
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -144,6 +145,22 @@ func TestDetachedJobOwnsReplicaAndCanBeStopped(t *testing.T) {
 	r = mustRun(t, dir, "stop", id)
 	if !strings.Contains(r.stderr, "not running") {
 		t.Fatalf("stop ended job: %s", r)
+	}
+}
+
+func TestKilledTmuxSessionKeepsJobAndLog(t *testing.T) {
+	dir := newProject(t, "tmuxkill")
+	id := detach(t, dir, "--shell", "for i in $(seq 1 30); do echo tick $i; sleep 0.5; done")
+	waitJob(t, dir, id, "running")
+	if out, err := exec.Command("tmux", "-L", "recom", "kill-session", "-t", "recom-"+id).CombinedOutput(); err != nil {
+		t.Fatalf("kill-session: %v %s", err, out)
+	}
+	j := waitJob(t, dir, id, "exited")
+	if j.ExitCode == nil || *j.ExitCode != 0 {
+		t.Fatalf("job should finish normally after its tmux session is killed: %+v", j)
+	}
+	if r := mustRun(t, dir, "logs", id); !strings.Contains(r.stdout, "tick 30") {
+		t.Fatalf("log stopped when the tmux session died: %s", r)
 	}
 }
 
