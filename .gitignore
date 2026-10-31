@@ -4,3 +4,12 @@ agent/
 
 PLAN.md
 
+# build outputs
+/bin/
+/dist/
+/internal/helperbin/assets/*.gz
+/internal/helperbin/assets/recom-helper-*
+coverage.out
+
+# recom working-copy state (when dogfooding)
+.recom/
