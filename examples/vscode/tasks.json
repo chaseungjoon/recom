@@ -1,0 +1,29 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "recom: run current Python file",
+      "type": "process",
+      "command": "recom",
+      "args": ["python3", "${fileBasename}"],
+      "options": { "cwd": "${fileDirname}" },
+      "problemMatcher": [],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "recom: run with TTY",
+      "type": "process",
+      "command": "recom",
+      "args": ["--tty", "python3", "${fileBasename}"],
+      "options": { "cwd": "${fileDirname}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "recom: status",
+      "type": "process",
+      "command": "recom",
+      "args": ["status"],
+      "problemMatcher": []
+    }
+  ]
+}

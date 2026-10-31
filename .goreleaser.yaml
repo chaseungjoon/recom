@@ -1,0 +1,74 @@
+version: 2
+project_name: recom
+
+before:
+  hooks:
+    - go mod download
+    # Linux helpers are embedded into every client, so they must exist first.
+    - make helpers VERSION={{ .Version }} COMMIT={{ .FullCommit }} DATE={{ .CommitDate }}
+
+builds:
+  - id: recom
+    main: ./cmd/recom
+    binary: recom
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/chaseungjoon/recom/internal/buildinfo.Version={{ .Version }}
+      - -X github.com/chaseungjoon/recom/internal/buildinfo.Commit={{ .FullCommit }}
+      - -X github.com/chaseungjoon/recom/internal/buildinfo.Date={{ .CommitDate }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  disable: true
+
+release:
+  github:
+    owner: chaseungjoon
+    name: recom
+  prerelease: auto
+  header: |
+    **Write locally. Compute remotely. Bring generated files home.**
+
+    See [CHANGELOG.md](https://github.com/chaseungjoon/recom/blob/{{ .Tag }}/CHANGELOG.md) for what's in this release.
+  footer: |
+    ## Install
+
+    Homebrew (macOS and Linux):
+
+    ```sh
+    brew tap chaseungjoon/recom
+    brew trust chaseungjoon/recom   # required once by current Homebrew for third-party taps
+    brew install recom
+    ```
+
+    Manual (example: Apple Silicon):
+
+    ```sh
+    curl -LO https://github.com/chaseungjoon/recom/releases/download/{{ .Tag }}/recom_{{ .Version }}_darwin_arm64.tar.gz
+    curl -LO https://github.com/chaseungjoon/recom/releases/download/{{ .Tag }}/checksums.txt
+    shasum -a 256 --check --ignore-missing checksums.txt
+    tar -xzf recom_{{ .Version }}_darwin_arm64.tar.gz && sudo mv recom /usr/local/bin/
+    ```
+
+    Every client embeds the Linux helpers (amd64 and arm64) it installs on backends.
