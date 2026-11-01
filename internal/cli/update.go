@@ -27,8 +27,9 @@ pick up the matching helper automatically on the next connection.
   recom update --check          only report whether an update is available
   recom update --version v0.2.0 install a specific release (also downgrades)
 
-If recom lives in a directory you cannot write to (e.g. /usr/local/bin),
-run ` + "`sudo recom update`" + `.`,
+The installer puts recom in ~/.local/bin, so no sudo is needed. If recom
+lives in a directory you cannot write to (e.g. /usr/local/bin), run
+` + "`sudo recom update`" + `, or reinstall into ~/.local/bin and remove the old copy.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := newApp(cmd, gf)
@@ -83,7 +84,7 @@ run ` + "`sudo recom update`" + `.`,
 			a.info("checksum verified")
 			if err := selfupdate.Install(exe, bin, want.String()); err != nil {
 				if errors.Is(err, selfupdate.ErrPermission) {
-					return fmt.Errorf("%v; run `sudo recom update`, or reinstall into a directory you own:\n  %s", err, strings.Replace(selfupdate.InstallScript, "| sh", "| RECOM_INSTALL_DIR=\"$HOME/.local/bin\" sh", 1))
+					return fmt.Errorf("%v; reinstall into ~/.local/bin (no sudo) and remove %s:\n  %s\nor run `sudo recom update`", err, exe, selfupdate.InstallScript)
 				}
 				return err
 			}

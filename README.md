@@ -52,12 +52,15 @@ No laggy remote editor, no network filesystem, no daemon, no remote virtualenv t
 curl -fsSL https://raw.githubusercontent.com/chaseungjoon/recom/main/install.sh | sh
 ```
 
-The script above installs `recom` to `/usr/local/bin` (using sudo if needed, otherwise `~/.local/bin`).
+The script above installs `recom` to `~/.local/bin` without sudo, and tells
+you how to add that directory to your `PATH` if needed (macOS does not include
+it by default). To install elsewhere, set `RECOM_INSTALL_DIR`, e.g.
+`curl -fsSL … | RECOM_INSTALL_DIR=/usr/local/bin sh` (uses sudo only then).
 
 Update with:
 
 ```sh
-recom update           # sudo recom update if recom is in /usr/local/bin
+recom update
 ```
 
 ### Releases tab
@@ -67,10 +70,11 @@ Download the archive for your platform from
 put `recom` on your `PATH`:
 
 ```sh
-curl -LO https://github.com/chaseungjoon/recom/releases/download/v0.2.0/recom_0.2.0_darwin_arm64.tar.gz
-curl -LO https://github.com/chaseungjoon/recom/releases/download/v0.2.0/checksums.txt
+curl -LO https://github.com/chaseungjoon/recom/releases/download/v0.2.1/recom_0.2.1_darwin_arm64.tar.gz
+curl -LO https://github.com/chaseungjoon/recom/releases/download/v0.2.1/checksums.txt
 shasum -a 256 --check --ignore-missing checksums.txt
-tar -xzf recom_0.2.0_darwin_arm64.tar.gz && sudo mv recom /usr/local/bin/
+tar -xzf recom_0.2.1_darwin_arm64.tar.gz
+mkdir -p ~/.local/bin && install -m 0755 recom ~/.local/bin/
 ```
 
 ### Build from source
@@ -80,7 +84,7 @@ Requires Golang (see `go.mod`) and `make`:
 ```sh
 git clone https://github.com/chaseungjoon/recom.git && cd recom
 make build                      # bin/recom, with the Linux helpers embedded
-sudo install -m 0755 bin/recom /usr/local/bin/
+mkdir -p ~/.local/bin && install -m 0755 bin/recom ~/.local/bin/
 ```
 
 Use `make build`, not plain `go build`: the client embeds the cross-compiled

@@ -6,8 +6,9 @@
 #
 # Environment variables:
 #   RECOM_VERSION      release to install, e.g. v0.2.0 (default: latest)
-#   RECOM_INSTALL_DIR  directory for the binary (default: /usr/local/bin,
-#                      falling back to ~/.local/bin when sudo is unavailable)
+#   RECOM_INSTALL_DIR  directory for the binary (default: ~/.local/bin).
+#                      The installer never uses sudo unless you point this at
+#                      a directory you cannot write to, e.g. /usr/local/bin.
 
 set -eu
 
@@ -72,18 +73,29 @@ detect_platform() {
 	fi
 }
 
-install_binary() { # src dir
+install_binary() { # src dir allow_sudo
 	if [ -d "$2" ] && [ -w "$2" ]; then
 		install -m 0755 "$1" "$2/recom"
 	elif [ ! -e "$2" ] && mkdir -p "$2" 2>/dev/null; then
 		install -m 0755 "$1" "$2/recom"
-	elif has sudo; then
+	elif [ "$3" = yes ] && has sudo; then
 		say "installing to $2 requires sudo"
 		sudo mkdir -p "$2"
 		sudo install -m 0755 "$1" "$2/recom"
 	else
 		return 1
 	fi
+}
+
+path_hint() { # dir
+	case "${SHELL:-}" in
+		*/zsh) rc='~/.zshrc' ;;
+		*/bash) if [ "$os" = darwin ]; then rc='~/.bash_profile'; else rc='~/.bashrc'; fi ;;
+		*/fish) say "note: $1 is not on your PATH; add it with: fish_add_path $1"; return ;;
+		*) rc='your shell profile' ;;
+	esac
+	say "note: $1 is not on your PATH; add this line to ${rc} and open a new shell:"
+	say "  export PATH=\"$1:\$PATH\""
 }
 
 main() {
@@ -117,22 +129,30 @@ main() {
 	tar -xzf "$tmp/$archive" -C "$tmp" recom
 	[ -f "$tmp/recom" ] || die "archive did not contain the recom binary"
 
-	dir=${RECOM_INSTALL_DIR:-/usr/local/bin}
-	if ! install_binary "$tmp/recom" "$dir"; then
-		if [ -n "${RECOM_INSTALL_DIR:-}" ]; then
-			die "cannot write to ${dir}"
-		fi
+	# Default to a per-user directory: no root, and `recom update` works
+	# without sudo. sudo is only used when RECOM_INSTALL_DIR explicitly names
+	# a directory the user cannot write to.
+	if [ -n "${RECOM_INSTALL_DIR:-}" ]; then
+		dir=$RECOM_INSTALL_DIR
+		allow_sudo=yes
+	else
+		[ -n "${HOME:-}" ] || die "HOME is not set; set RECOM_INSTALL_DIR"
 		dir="${HOME}/.local/bin"
-		say "/usr/local/bin is not writable and sudo is unavailable; using ${dir}"
-		install_binary "$tmp/recom" "$dir" || die "cannot write to ${dir}"
+		allow_sudo=no
 	fi
+	install_binary "$tmp/recom" "$dir" "$allow_sudo" || die "cannot write to ${dir}; set RECOM_INSTALL_DIR to a directory you own"
 
 	say "installed ${dir}/recom"
 	"${dir}/recom" version >&2 || true
 
 	case ":${PATH}:" in
-		*":${dir}:"*) ;;
-		*) say "note: ${dir} is not on your PATH; add it, e.g. export PATH=\"${dir}:\$PATH\"" ;;
+		*":${dir}:"*)
+			found=$(command -v recom 2>/dev/null || true)
+			if [ -n "$found" ] && [ "$found" != "${dir}/recom" ]; then
+				say "note: ${found} comes first on your PATH and shadows ${dir}/recom; remove it (e.g. sudo rm ${found})"
+			fi
+			;;
+		*) path_hint "$dir" ;;
 	esac
 
 	if [ "$os" = darwin ]; then

@@ -68,7 +68,8 @@ release:
     curl -LO https://github.com/chaseungjoon/recom/releases/download/{{ .Tag }}/recom_{{ .Version }}_darwin_arm64.tar.gz
     curl -LO https://github.com/chaseungjoon/recom/releases/download/{{ .Tag }}/checksums.txt
     shasum -a 256 --check --ignore-missing checksums.txt
-    tar -xzf recom_{{ .Version }}_darwin_arm64.tar.gz && sudo mv recom /usr/local/bin/
+    tar -xzf recom_{{ .Version }}_darwin_arm64.tar.gz
+    mkdir -p ~/.local/bin && install -m 0755 recom ~/.local/bin/
     ```
 
     Every client embeds the Linux helpers (amd64 and arm64) it installs on backends.
