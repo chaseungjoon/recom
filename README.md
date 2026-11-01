@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/chaseungjoon/recom/actions/workflows/ci.yml/badge.svg)](https://github.com/chaseungjoon/recom/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/chaseungjoon/recom?include_prereleases)](https://github.com/chaseungjoon/recom/releases)
-[![License: MIT](https://img.shields.io/badge/license-MIT-red.svg)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-red.svg)](LICENSE)
 
 [![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)](docs/environments.md#supported-toolchains)
 [![C](https://img.shields.io/badge/C-A8B9CC?logo=c&logoColor=black)](examples/c-cpp)
@@ -234,4 +234,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
 ## License
 
-[MIT](LICENSE)
+[GPL-3.0](LICENSE)
