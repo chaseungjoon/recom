@@ -269,3 +269,36 @@ func TestTailOffset(t *testing.T) {
 		t.Fatal("tail beyond start")
 	}
 }
+
+func TestAppendFallbackPicksNewestVersion(t *testing.T) {
+	home := t.TempDir()
+	for _, d := range []string{".nvm/versions/node/v9.11.2/bin", ".nvm/versions/node/v18.20.4/bin", ".nvm/versions/node/v22.1.0/bin", ".cargo/bin"} {
+		if err := os.MkdirAll(filepath.Join(home, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := appendFallback("/usr/bin:"+filepath.Join(home, ".cargo/bin"), []string{"~/.volta/bin", "~/.nvm/versions/node/*/bin", "~/.cargo/bin", "relative/bin"}, home)
+	want := "/usr/bin:" + filepath.Join(home, ".cargo/bin") + ":" + filepath.Join(home, ".nvm/versions/node/v22.1.0/bin")
+	if got != want {
+		t.Fatalf("got  %s\nwant %s", got, want)
+	}
+}
+
+func TestSetupStampsRequirePath(t *testing.T) {
+	replica := t.TempDir()
+	dir := filepath.Join(replica, ".recom", "setup")
+	os.MkdirAll(dir, 0o755)
+	os.WriteFile(filepath.Join(dir, "python"), []byte("fp1\n.venv/bin/python\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "go"), []byte("fp2\n\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "evil"), []byte("fp3\n../../etc/passwd\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "python.tmp"), []byte("x\n"), 0o644)
+	got := setupStamps(replica)
+	if len(got) != 1 || got["go"] != "fp2" {
+		t.Fatalf("stamps without .venv: %v", got)
+	}
+	os.MkdirAll(filepath.Join(replica, ".venv", "bin"), 0o755)
+	os.WriteFile(filepath.Join(replica, ".venv", "bin", "python"), nil, 0o755)
+	if got := setupStamps(replica); got["python"] != "fp1" || len(got) != 2 {
+		t.Fatalf("stamps with .venv: %v", got)
+	}
+}

@@ -1,19 +1,22 @@
 # CUDA PyTorch
 
 The virtualenv lives **on the backend**; your laptop needs no Python at all.
+`requirements.txt` lists `torch` (PyPI's Linux wheels include CUDA).
 
 ```sh
-recom init
-# point commands at the backend's venv
-sed -i.bak 's|^path = \[\]|path = [".venv/bin"]|' .recom.toml
-
-# one-time environment setup, as a detached job (large download)
-recom --detach --shell 'uv venv .venv && uv pip install --python .venv/bin/python torch --torch-backend=auto'
-recom logs <job-id> -f
-
+recom init                       # detects requirements.txt, builds .venv on the backend (large download)
 recom nvidia-smi                 # the backend's GPU
 recom python3 gpu.py             # matmul benchmark on CUDA; outputs/gpu.json comes back
 ```
 
-`.venv/` is never uploaded, downloaded or treated as an output. Without `uv`,
-use `python3 -m venv .venv && .venv/bin/pip install torch`.
+`python3` resolves to the backend's `.venv/bin/python3` because `recom init`
+recorded `path = [".venv/bin"]`. Change `requirements.txt` and the next run
+updates the environment first. `.venv/` is never uploaded, downloaded or
+treated as an output.
+
+For a specific CUDA build, use PyTorch's index in `requirements.txt`:
+
+```
+--index-url https://download.pytorch.org/whl/cu128
+torch
+```

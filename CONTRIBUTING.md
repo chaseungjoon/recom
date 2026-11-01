@@ -30,7 +30,6 @@ keys; they never touch `~/.ssh` or your recom configuration.
 
 ## Releasing
 
-Tag `vX.Y.Z` on `main`; the release workflow tests, builds with GoReleaser,
-publishes checksummed archives and updates the Homebrew tap
-(`chaseungjoon/homebrew-recom`, needs the `HOMEBREW_TAP_TOKEN` secret, or run
-`scripts/homebrew-formula.sh` by hand).
+Tag `vX.Y.Z` on `main`; the release workflow tests, builds with GoReleaser
+and publishes checksummed archives. `install.sh` and `recom update` pick up
+the new release from GitHub's `releases/latest` redirect.

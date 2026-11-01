@@ -60,13 +60,7 @@ release:
     curl -fsSL https://raw.githubusercontent.com/chaseungjoon/recom/main/install.sh | sh
     ```
 
-    Homebrew (macOS and Linux):
-
-    ```sh
-    brew tap chaseungjoon/recom
-    brew trust chaseungjoon/recom   # required once by current Homebrew for third-party taps
-    brew install recom
-    ```
+    Already installed? `recom update`.
 
     Manual (example: Apple Silicon):
 

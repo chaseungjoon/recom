@@ -1,4 +1,4 @@
-# Implementation status (v0.1.0)
+# Implementation status (v0.2.0)
 
 Status of each requirement in the original specification. **Tested** means
 covered by automated tests (`internal/e2e` runs recom end to end against a real
@@ -11,13 +11,15 @@ RTX 5070 over Tailscale.
 | Requirement | Status |
 |---|---|
 | `recom ssh`, `hosts`, `default` (no SSH config changes, `--port`, `--identity`, `-o`) | implemented, tested, verified live |
-| `recom init` (UUID, refuses reinit / nesting / `$HOME`, uploads nothing) | implemented, tested, verified live |
+| `recom init` (UUID, refuses reinit / nesting / `$HOME`; detects toolchains and sets up the backend) | implemented, tested (`TestInitSetsUpPythonVenvAndRunsUseIt`) |
+| Automatic environment setup (`[setup]`, `recom setup [--force] [--clean]`, `--no-setup`) | implemented; Python (pip and uv), Node (npm via nvm, pnpm), Rust and Go verified against a local backend; the custom command, watch files, failure and `--no-setup` tested end to end; detection and scripts of every toolchain unit-tested (scripts checked with `sh -n`) |
+| `recom update` | implemented; download, checksum, version check and atomic replace unit-tested against a fake release server |
 | `recom <cmd>`: auto upload, remote-only exec, mapped cwd, streaming, outputs | implemented, tested, verified live |
 | `--host`, `--no-sync`, `--tty`, `--detach`, `--shell`, `--` | implemented, tested, verified live |
 | `jobs`, `logs [-f]`, `attach`, `stop` | implemented, tested, verified live (attach tested via a PTY on the client) |
 | `pull` (explicit paths, `--force`, `--all`, `--dismiss`) | implemented; paths and held outputs tested |
 | `status`, `env`, `doctor`, `version` (+ `--json`) | implemented, tested, verified live |
-| Shell completion | implemented (cobra `completion`; installed by the Homebrew formula) |
+| Shell completion | implemented (cobra `completion`) |
 | `recom config`, `recom clean`, `recom export` | deferred (optional "later" commands) |
 
 ## Invariants
@@ -63,9 +65,8 @@ RTX 5070 over Tailscale.
   assets, checks `checksums.txt` and runs the linux/amd64 binary.
 - The published linux/arm64 archive was downloaded on the Pi, checksum-verified,
   and passed the full demo (17 steps) and the 12 interactive checks.
-- `brew tap chaseungjoon/recom && brew trust chaseungjoon/recom && brew install recom`
-  plus `brew test recom` verified in the official `homebrew/brew` container
-  (Linux arm64). The macOS formula paths were not installed on a real Mac.
+- Homebrew distribution was dropped in v0.2.0; `install.sh` and
+  `recom update` replace it.
 
 ## GPU
 
@@ -74,8 +75,16 @@ a detached job into a backend-side `.venv`) ran on the RTX 5070 from the Pi
 client, and the results were collected locally. `nvcc` was not installed on
 the backend, so the CUDA C example was not compiled.
 
+## Not yet verified (v0.2.0)
+
+- Setups for conda, Maven, Gradle, Ruby, PHP, Julia, R, .NET and Elixir were
+  checked for detection and valid shell, but not run against a backend with
+  those toolchains installed.
+- `recom update` was not run against the real GitHub release before v0.2.0
+  was published (no newer release existed yet).
+
 ## Deferred
 
-- Deletion propagation via a tracked source manifest (v0.1 never deletes remotely).
-- Private per-job workspaces (v0.1 serializes: a job owns its replica).
+- Deletion propagation via a tracked source manifest (recom never deletes remotely).
+- Private per-job workspaces (a job owns its replica).
 - Remote data mounts outside the project.

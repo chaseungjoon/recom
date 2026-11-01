@@ -48,6 +48,7 @@ type globalFlags struct {
 	json    bool
 
 	noSync    bool
+	noSetup   bool
 	noCollect bool
 	tty       bool
 	detach    bool
@@ -56,11 +57,14 @@ type globalFlags struct {
 
 const longHelp = `recom runs commands on a remote Linux machine over SSH while you keep
 editing locally. Every run automatically uploads changed project files first,
-executes the command only on the backend, streams its output, and then
-downloads the files that this run created or modified.
+installs the project's dependencies on the backend when they changed
+(requirements.txt → .venv, package.json → node_modules, ...), executes the
+command only on the backend, streams its output, and then downloads the
+files that this run created or modified.
 
   recom ssh aiworkstation        register an SSH backend (uses ~/.ssh/config)
-  recom init                     make the current directory a project
+  recom init                     make the current directory a project and
+                                 prepare its environment on the backend
   recom python3 src/run.py       sync, run remotely, bring outputs home
 
 Anything after recom that is not a recom subcommand is the remote command,
@@ -112,6 +116,7 @@ func NewRoot(stdout, stderr io.Writer) *cobra.Command {
 
 	f := root.Flags()
 	f.BoolVar(&gf.noSync, "no-sync", false, "skip the pre-run upload (e.g. recom --no-sync nvidia-smi)")
+	f.BoolVar(&gf.noSetup, "no-setup", false, "skip the automatic environment setup (venv, node_modules, ...) for this run")
 	f.BoolVar(&gf.noCollect, "no-collect", false, "do not download outputs after the run (they stay pending)")
 	f.BoolVarP(&gf.tty, "tty", "t", false, "run in a remote pseudo-terminal (interactive programs, colors)")
 	f.BoolVarP(&gf.detach, "detach", "d", false, "start a persistent remote job and print its id")
@@ -124,7 +129,7 @@ func NewRoot(stdout, stderr io.Writer) *cobra.Command {
 			root.AddCommand(c)
 		}
 	}
-	add("setup", sshCmd(gf), hostsCmd(gf), defaultCmd(gf), initCmd(gf))
+	add("setup", sshCmd(gf), hostsCmd(gf), defaultCmd(gf), initCmd(gf), setupCmd(gf), updateCmd(gf))
 	add("jobs", jobsCmd(gf), logsCmd(gf), attachCmd(gf), stopCmd(gf), pullCmd(gf))
 	add("info", statusCmd(gf), envCmd(gf), doctorCmd(gf), versionCmd(gf))
 	root.AddCommand(&cobra.Command{

@@ -244,6 +244,9 @@ func (s *server) handle(req *protocol.Request) (*protocol.Response, error) {
 			}
 		}
 		st.LastRun = lastRun(s.layout, s.replica)
+		if st.ReplicaExists {
+			st.Setup = setupStamps(s.replicaPath)
+		}
 		return &protocol.Response{Status: st}, nil
 	default:
 		return nil, perr(protocol.ErrBadRequest, "unknown operation %q", req.Op)
@@ -293,6 +296,9 @@ func (s *server) open(o *protocol.OpenRequest) (*protocol.Response, error) {
 	var warns []string
 	res.Pending, warns = pendingOutputs(s.layout, s.replica)
 	res.Warnings = append(res.Warnings, warns...)
+	if res.ReplicaExists {
+		res.Setup = setupStamps(s.replicaPath)
+	}
 	return &protocol.Response{Open: res}, nil
 }
 

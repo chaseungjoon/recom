@@ -5,7 +5,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/chaseungjoon/recom/main/install.sh | sh
 #
 # Environment variables:
-#   RECOM_VERSION      release to install, e.g. v0.1.0 (default: latest)
+#   RECOM_VERSION      release to install, e.g. v0.2.0 (default: latest)
 #   RECOM_INSTALL_DIR  directory for the binary (default: /usr/local/bin,
 #                      falling back to ~/.local/bin when sudo is unavailable)
 

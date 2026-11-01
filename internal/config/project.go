@@ -16,6 +16,7 @@ import (
 
 	"github.com/chaseungjoon/recom/internal/pathmatch"
 	"github.com/chaseungjoon/recom/internal/policy"
+	"github.com/chaseungjoon/recom/internal/toolchain"
 )
 
 // ProjectFile is the project config file name, placed at the project root.
@@ -30,8 +31,27 @@ type Project struct {
 	Host    string        `toml:"host,omitempty"`
 	Sync    SyncConfig    `toml:"sync"`
 	Outputs OutputsConfig `toml:"outputs"`
+	Setup   SetupConfig   `toml:"setup"`
 	Run     RunConfig     `toml:"run"`
 	Jobs    JobsConfig    `toml:"jobs"`
+}
+
+// SetupConfig controls automatic environment setup on the backend.
+type SetupConfig struct {
+	// Toolchains whose dependencies recom installs before running. Unset
+	// (projects from recom 0.1) or containing "auto" detects them on every
+	// run; an empty list turns automatic setup off.
+	Toolchains []string `toml:"toolchains"`
+	// Command is an extra backend command run after the toolchain setups.
+	Command string `toml:"command,omitempty"`
+	// Watch lists files (globs, relative to the project root) whose change
+	// re-runs Command.
+	Watch []string `toml:"watch"`
+}
+
+// Toolchain converts the section for the toolchain package.
+func (s SetupConfig) Toolchain() toolchain.Config {
+	return toolchain.Config{Toolchains: s.Toolchains, Command: s.Command, Watch: s.Watch}
 }
 
 // SyncConfig controls the pre-run upload.
@@ -118,6 +138,16 @@ func (p *Project) Validate() error {
 	default:
 		return fmt.Errorf("%s: run.env_mode must be \"login\" or \"ssh\"", ProjectFile)
 	}
+	for _, n := range p.Setup.Toolchains {
+		if !toolchain.Known(n) {
+			return fmt.Errorf("%s: setup.toolchains: unknown toolchain %q (known: auto, %s)", ProjectFile, n, strings.Join(toolchain.Names(), ", "))
+		}
+	}
+	for _, w := range p.Setup.Watch {
+		if w == "" || strings.HasPrefix(w, "/") || strings.Contains(w, "..") {
+			return fmt.Errorf("%s: setup.watch: %q must be a path relative to the project root", ProjectFile, w)
+		}
+	}
 	switch p.Jobs.Tmux {
 	case "", "auto", "always", "never":
 	default:
@@ -176,14 +206,31 @@ func ParseSize(s string) (int64, error) {
 	return int64(f * float64(mult)), nil
 }
 
-// ProjectTemplate is written by `recom init`.
-func ProjectTemplate(id string) string {
+// ProjectTemplate is written by `recom init`. toolchains and path are what
+// init detected in the project (toolchains nil means none was found).
+func ProjectTemplate(id string, toolchains, path []string) string {
+	tc := `["auto"]`
+	if len(toolchains) > 0 {
+		tc = tomlList(toolchains)
+	}
 	return `# recom project configuration. Safe to commit: it contains no secrets and
 # no machine-specific paths. Docs: https://github.com/chaseungjoon/recom/blob/main/docs/configuration.md
 id = "` + id + `"
 
 # Preferred backend for this project (overrides the global default).
 # host = "aiworkstation"
+
+[setup]
+# Before running your command, recom installs the project's dependencies on
+# the backend from your dependency files (requirements.txt / pyproject.toml →
+# .venv, package.json → node_modules, Cargo.toml, go.mod, Gemfile, ...), and
+# again whenever those files change. "auto" detects toolchains on every run;
+# [] turns automatic setup off. See docs/environments.md.
+toolchains = ` + tc + `
+# Extra backend command run after the toolchain setups, e.g. "make deps";
+# it runs again whenever a file matching ` + "`watch`" + ` changes.
+# command = ""
+watch = []
 
 [sync]
 # Extra rsync-style patterns that are never uploaded.
@@ -206,9 +253,9 @@ max_run_size = "1GB"
 env_mode = "login"
 # Extra environment variables for remote commands.
 env = {}
-# Directories prepended to PATH (relative entries are inside the remote project),
-# e.g. [".venv/bin"] for a virtualenv created on the backend.
-path = []
+# Directories prepended to PATH (relative entries are inside the remote project).
+# The [setup] toolchains' directories (e.g. .venv/bin) are always included.
+path = ` + tomlList(path) + `
 # Command prefix, e.g. ["conda", "run", "--no-capture-output", "-n", "myenv"].
 wrapper = []
 
@@ -216,6 +263,14 @@ wrapper = []
 # Detached jobs run under tmux when available: "auto", "always" or "never".
 tmux = "auto"
 `
+}
+
+func tomlList(items []string) string {
+	q := make([]string, len(items))
+	for i, s := range items {
+		q[i] = strconv.Quote(s)
+	}
+	return "[" + strings.Join(q, ", ") + "]"
 }
 
 // LoadProject parses a project file.
@@ -381,8 +436,9 @@ func writeLocal(p string, ls *LocalState) error {
 	return WriteFileAtomic(p, []byte(sb.String()), 0o600)
 }
 
-// Init creates a new project at dir.
-func Init(dir, host string) (*Project, error) {
+// Init creates a new project at dir, recording the detected toolchains and
+// their PATH entries.
+func Init(dir, host string, toolchains, path []string) (*Project, error) {
 	real, err := filepath.EvalSymlinks(dir)
 	if err != nil {
 		return nil, err
@@ -408,7 +464,7 @@ func Init(dir, host string) (*Project, error) {
 		return nil, fmt.Errorf("invalid host name %q", host)
 	}
 	id := NewUUID()
-	content := ProjectTemplate(id)
+	content := ProjectTemplate(id, toolchains, path)
 	if host != "" {
 		content = strings.Replace(content, `# host = "aiworkstation"`, `host = "`+host+`"`, 1)
 	}

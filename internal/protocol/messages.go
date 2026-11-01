@@ -108,6 +108,9 @@ type OpenResult struct {
 	Holder        *LeaseInfo `json:"holder,omitempty"`
 	Pending       []Output   `json:"pending,omitempty"`
 	Warnings      []string   `json:"warnings,omitempty"`
+	// Setup maps toolchain name to the fingerprint of its last successful
+	// environment setup in this replica (see internal/toolchain).
+	Setup map[string]string `json:"setup,omitempty"`
 }
 
 // LeaseInfo describes the holder of a replica lease.
@@ -138,19 +141,26 @@ type ExecRequest struct {
 	Display string            `json:"display"` // redacted command for manifests/listings
 	Cwd     string            `json:"cwd"`     // relative to replica ("." for root); "~" for remote home
 	Env     map[string]string `json:"env"`
-	Path    []string          `json:"path"`    // PATH entries to prepend (relative = replica-relative)
-	Wrapper []string          `json:"wrapper"` // argv prefix
-	Shell   bool              `json:"shell"`   // Argv[0] is a shell expression
-	EnvMode string            `json:"env_mode"`
-	TTY     bool              `json:"tty"`
-	Term    string            `json:"term"`
-	Rows    int               `json:"rows"`
-	Cols    int               `json:"cols"`
-	Detach  bool              `json:"detach"`
-	Tmux    string            `json:"tmux"` // auto|always|never (detached only)
-	Policy  OutputPolicy      `json:"policy"`
-	Client  string            `json:"client"`
-	Local   string            `json:"local"` // local project root (informational)
+	Path    []string          `json:"path"` // PATH entries to prepend (relative = replica-relative)
+	// RelEnv sets variables to replica-relative paths that exist (e.g.
+	// VIRTUAL_ENV=.venv); Env takes precedence.
+	RelEnv map[string]string `json:"rel_env,omitempty"`
+	// PathFallback lists directories appended to PATH if they exist ("~/"
+	// prefix and globs allowed; for a glob the highest version wins), e.g.
+	// ~/.nvm/versions/node/*/bin for tools set up only by interactive shells.
+	PathFallback []string     `json:"path_fallback,omitempty"`
+	Wrapper      []string     `json:"wrapper"` // argv prefix
+	Shell        bool         `json:"shell"`   // Argv[0] is a shell expression
+	EnvMode      string       `json:"env_mode"`
+	TTY          bool         `json:"tty"`
+	Term         string       `json:"term"`
+	Rows         int          `json:"rows"`
+	Cols         int          `json:"cols"`
+	Detach       bool         `json:"detach"`
+	Tmux         string       `json:"tmux"` // auto|always|never (detached only)
+	Policy       OutputPolicy `json:"policy"`
+	Client       string       `json:"client"`
+	Local        string       `json:"local"` // local project root (informational)
 }
 
 // Event is an informational helper message.
@@ -304,6 +314,8 @@ type EnvRequest struct {
 	EnvMode   string            `json:"env_mode"`
 	Env       map[string]string `json:"env"`
 	Path      []string          `json:"path"`
+	// PathFallback is as in ExecRequest.
+	PathFallback []string `json:"path_fallback,omitempty"`
 }
 
 // Tool is a resolved remote tool.
@@ -343,6 +355,8 @@ type StatusResult struct {
 	Running       []JobInfo  `json:"running,omitempty"`
 	LastRun       *RunInfo   `json:"last_run,omitempty"`
 	Warnings      []string   `json:"warnings,omitempty"`
+	// Setup is as in OpenResult.
+	Setup map[string]string `json:"setup,omitempty"`
 }
 
 // RunInfo summarizes a run manifest.
