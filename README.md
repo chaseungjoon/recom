@@ -38,8 +38,16 @@ Write code in your macbook air, run the heavy compute on your Linux workstation 
 # instead of
 python3 heavy_cuda.py
 
+g++ -O3 sim.cpp -o sim && ./sim
+
+cargo run --release
+
 # run
 recom python3 heavy_cuda.py
+
+recom g++ -O3 sim.cpp -o sim && recom ./sim
+
+recom cargo run --release
 ```
 
 No laggy remote editor, no network filesystem, no daemon, no remote virtualenv to manage by hand.
