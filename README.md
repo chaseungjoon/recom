@@ -7,10 +7,14 @@
 **Write locally. Compute remotely. Bring generated files home.**
 
 recom runs a command on your GPU workstation (or any Linux box you can `ssh`
-into) as if it were local. Edit in your own editor on your laptop, type
+into) as if it were local.
+
+Edit in your own editor on your laptop, type
 `recom python3 train.py`, and recom uploads what changed, runs it **only** on
 the remote machine, streams the output, and copies back the files that run
-produced. No remote editor, no network filesystem, no daemon.
+produced.
+
+No remote editor, no network filesystem, no daemon.
 
 ```console
 $ recom python3 src/run.py
@@ -25,9 +29,7 @@ recom: ← outputs/result.json (96 B)
 curl -fsSL https://raw.githubusercontent.com/chaseungjoon/recom/main/install.sh | sh
 ```
 
-The [install script](install.sh) picks the right build for macOS or Linux
-(amd64/arm64), verifies it against the release's `checksums.txt`, and installs
-`recom` to `/usr/local/bin` (using sudo if needed, otherwise `~/.local/bin`).
+The script above installs `recom` to `/usr/local/bin` (using sudo if needed, otherwise `~/.local/bin`).
 Set `RECOM_VERSION` to pin a release or `RECOM_INSTALL_DIR` to choose the
 location:
 
@@ -81,7 +83,7 @@ root and no extra software: recom installs its own small helper under
 ## Quick start
 
 ```sh
-recom ssh aiworkstation        # any ~/.ssh/config alias or user@host
+recom ssh <username>@<host>        # any ~/.ssh/config alias or user@host
 cd ~/Projects/my-model
 recom init                     # creates .recom.toml (commit it); uploads nothing yet
 recom python3 src/run.py       # first run uploads the project, later runs only the diff
