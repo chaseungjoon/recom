@@ -18,6 +18,7 @@ import (
 	"github.com/chaseungjoon/recom/internal/protocol"
 	"github.com/chaseungjoon/recom/internal/remote"
 	"github.com/chaseungjoon/recom/internal/sshx"
+	"github.com/chaseungjoon/recom/internal/toolchain"
 )
 
 func sshCmd(gf *globalFlags) *cobra.Command {
@@ -280,15 +281,23 @@ func defaultCmd(gf *globalFlags) *cobra.Command {
 }
 
 func initCmd(gf *globalFlags) *cobra.Command {
+	var noSetup bool
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Make the current directory a recom project (uploads nothing yet)",
-		Long: `Create .recom.toml (a random project id plus documented sync/output
-settings, safe to commit) and .recom/ (untracked working-copy state) in the
-current directory. Nothing is uploaded: the first ` + "`recom <command>`" + ` creates the
-remote replica. Refuses to reinitialize an existing project.
+		Short: "Make the current directory a recom project and prepare its backend environment",
+		Long: `Create .recom.toml (a random project id plus documented settings, safe to
+commit) and .recom/ (untracked working-copy state) in the current directory.
 
-With --host, the backend is recorded as this project's preferred backend.`,
+init detects the project's toolchains from its dependency files
+(requirements.txt, pyproject.toml, environment.yml, package.json,
+Cargo.toml, go.mod, Gemfile, ...) and records them under [setup], with
+their directories (e.g. .venv/bin) in [run] path. If there is something to
+install and a backend is registered, init then uploads the project and
+sets up the environment on the backend right away, so the first
+` + "`recom <command>`" + ` starts immediately; --no-setup leaves that to the first run.
+
+Refuses to reinitialize an existing project. With --host, the backend is
+recorded as this project's preferred backend.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := newApp(cmd, gf)
@@ -296,7 +305,12 @@ With --host, the backend is recorded as this project's preferred backend.`,
 			if err != nil {
 				return err
 			}
-			p, err := config.Init(cwd, gf.host)
+			plans := toolchain.Detect(cwd)
+			var names []string
+			for _, p := range plans {
+				names = append(names, p.Name)
+			}
+			p, err := config.Init(cwd, gf.host, names, toolchain.Paths(plans))
 			if err != nil {
 				return err
 			}
@@ -305,14 +319,14 @@ With --host, the backend is recorded as this project's preferred backend.`,
 			}
 			a.info("initialized recom project %s", p.ID)
 			a.info("created %s (commit it) and %s/ (local state, ignored by git)", config.ProjectFile, config.LocalDir)
-			g, _ := a.loadGlobal()
-			if g == nil || len(g.Hosts) == 0 {
-				a.info("next: register a backend with `recom ssh <alias>`, then run `recom <command>`")
-			} else {
-				a.info("next: `recom <command>` — the first run uploads the project")
+			a.describePlans(plans)
+			ws, err := a.workspace()
+			if err != nil {
+				return err
 			}
-			return nil
+			return a.initSetup(ws, a.plans(ws), noSetup)
 		},
 	}
+	cmd.Flags().BoolVar(&noSetup, "no-setup", false, "only write the configuration; set up the backend on the first run")
 	return cmd
 }

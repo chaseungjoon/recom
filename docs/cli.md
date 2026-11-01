@@ -22,10 +22,11 @@ recom -- status                       # run a remote program named "status"
 |---|---|
 | `--host, -H <name>` | Backend for this invocation (overrides `RECOM_HOST`, the project's `host`, and the default). Each backend keeps its own replica. |
 | `--no-sync` | Skip the pre-run upload (e.g. `recom --no-sync nvidia-smi`). Outputs are still collected if the replica is idle. Before the first sync, or outside any project, the command runs in the remote home directory and nothing is collected. |
+| `--no-setup` | Skip the automatic [environment setup](environments.md) for this run, even if dependency files changed. |
 | `--no-collect` | Run normally but leave outputs on the backend (they stay pending for the next run or `recom pull`). |
 | `--tty, -t` | Run inside a remote pseudo-terminal: prompts, REPLs, curses programs, colors, Ctrl-C/Ctrl-Z as keys, window resizing. stdout and stderr are merged, as on any terminal. |
 | `--detach, -d` | Start a persistent job, print its id, and return. See [jobs](#jobs). |
-| `--shell '<expr>'` | Run a shell expression remotely with `$SHELL -c` (pipes, redirection, globbing, `&&`, env expansion). Takes no further arguments. |
+| `--shell '<expr>'` | Run a shell expression remotely with `$SHELL -c` (pipes, redirection, globbing, `&&`, env expansion). Takes no further arguments. Also the manual fallback for environments recom does not set up itself. |
 | `--verbose, -v` | Show ssh/rsync commands, uploaded file names and timings. |
 | `--quiet, -q` | Only print warnings and errors from recom itself. |
 
@@ -57,7 +58,7 @@ its process group receives SIGHUP, like closing a terminal; use `nohup`,
 | 126 / 127 | Remote command not executable / not found on the backend. |
 | 2 | Usage error (unknown flag, bad arguments). |
 | 75 | The command succeeded, but some outputs could not be collected; they stay pending. |
-| 125 | recom failed before the command started (config, upload, busy replica, helper). |
+| 125 | recom failed before the command started (config, upload, environment setup, busy replica, helper). |
 | 130 | Interrupted with Ctrl-C. |
 | 255 | SSH connection failed or was lost. |
 
@@ -88,10 +89,39 @@ or choose the default.
 ### `recom init`
 
 Create `.recom.toml` (project id + documented settings; commit it) and
-`.recom/` (local state; ignores itself) in the current directory. Uploads
-nothing. Refuses to reinitialize, to nest inside another project, and to run
-in your home directory or `/`. `recom --host <name> init` records a preferred
-backend in the project file.
+`.recom/` (local state; ignores itself) in the current directory. Refuses to
+reinitialize, to nest inside another project, and to run in your home
+directory or `/`. `recom --host <name> init` records a preferred backend in
+the project file.
+
+init detects the project's toolchains from its dependency files
+(`requirements.txt`, `pyproject.toml`, `environment.yml`, `package.json`,
+`Cargo.toml`, `go.mod`, `Gemfile`, ...; see [environments](environments.md))
+and records them under `[setup]`, with their directories (e.g. `.venv/bin`)
+in `[run] path`. If there is something to install and a backend is
+registered, init then uploads the project and sets up the environment on the
+backend right away. `--no-setup` only writes the configuration; the first run
+then does the setup. A project without dependency files uploads nothing at
+init.
+
+### `recom setup [--force] [--clean]`
+
+Upload the project and run its environment setup now: the step every run
+performs automatically, before the command, when the dependency files changed
+since the last setup on that backend. Only steps whose files changed run;
+`--force` runs all of them, and `--clean` first deletes the environments
+(`.venv`, `.conda`, `node_modules`, ...) in the replica and rebuilds them.
+Setup output goes to stderr.
+
+### `recom update [--check] [--version vX.Y.Z] [--force]`
+
+Replace this `recom` binary with the latest GitHub release (or the given
+one; downgrades are allowed with `--version`). The archive is verified
+against the release's `checksums.txt`, the new binary must run and report
+the expected version, and the swap is atomic. `--check` only reports whether
+a newer release exists. If the binary's directory is not writable (e.g.
+`/usr/local/bin`), run `sudo recom update`. Backends receive the matching
+helper automatically on the next connection.
 
 ## Jobs
 
@@ -153,8 +183,8 @@ started from; otherwise the remote version goes to `.recom/conflicts/<run>/`.
 
 | Command | |
 |---|---|
-| `recom status` | Project id, working copy, backend, replica path, connectivity, last sync and run, running jobs, pending and held outputs. `--json` available. |
-| `recom env` | The backend as your commands see it: OS, kernel, architecture, shell, effective `PATH` (after `[run]` settings), Python/compilers/CUDA tools, GPUs, free space. `--json` available. Use `recom -- env` to run the `env` program. |
+| `recom status` | Project id, working copy, backend, replica path, connectivity, last sync and run, environment setup state, running jobs, pending and held outputs. `--json` available. |
+| `recom env` | The backend as your commands see it: OS, kernel, architecture, shell, effective `PATH` (after `[run]` settings and toolchain directories), Python/Node/Rust/Go/compilers/CUDA tools, GPUs, free space. `--json` available. Use `recom -- env` to run the `env` program. |
 | `recom doctor` | Checks local ssh/rsync/config/project, connectivity, noisy shell startup files, helper install and integrity, backend rsync/tmux/storage/GPU, and the replica lease. Exits non-zero on failures. |
 | `recom version` | Version, commit, build date, platform, protocol version and embedded helpers. `--json` available. `recom --version` prints the short form. |
 | `recom completion <bash\|zsh\|fish>` | Shell completion script. |
@@ -170,6 +200,7 @@ started from; otherwise the remote version goes to `.recom/conflicts/<run>/`.
 | `RECOM_NO_MULTIPLEX=1` | Disable OpenSSH connection sharing (ControlMaster). |
 | `RECOM_RSYNC` | rsync binary to use. |
 | `RECOM_HELPER_PATH` | Use this Linux helper binary instead of the embedded one (development). |
+| `RECOM_UPDATE_URL` | Release base URL for `recom update` (default `https://github.com/chaseungjoon/recom/releases`). |
 | `NO_COLOR` | Disable colored recom messages. |
 
 Remote commands additionally see `RECOM=1`, `RECOM_RUN_ID`,

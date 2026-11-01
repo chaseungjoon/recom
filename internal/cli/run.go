@@ -18,6 +18,8 @@ import (
 	"github.com/chaseungjoon/recom/internal/protocol"
 	"github.com/chaseungjoon/recom/internal/remote"
 	"github.com/chaseungjoon/recom/internal/rsync"
+	"github.com/chaseungjoon/recom/internal/sshx"
+	"github.com/chaseungjoon/recom/internal/toolchain"
 )
 
 // runRemote implements `recom <command> [args...]`.
@@ -100,61 +102,35 @@ func runRemote(a *app, args []string) error {
 		a.warn("project is busy on %s (%s); running without output tracking", t.Name, holderText(or.Holder))
 	}
 
+	plans := a.plans(ws)
+
 	// 1. Reconcile outputs left pending by earlier runs before uploading, so
 	//    nothing generated remotely can be lost or overwritten.
 	var protected []string
 	if or.Locked {
-		var auto []protocol.Output
-		for _, o := range or.Pending {
-			if o.Status == protocol.StatusPending && !gf.noCollect {
-				auto = append(auto, o)
-			}
-		}
-		if len(auto) > 0 {
-			a.info("collecting %d pending output(s) from earlier runs", len(auto))
-			if _, err := a.collectOutputs(conn, ws, t, rs, or.ReplicaPath, auto, "pending", false); err != nil {
-				a.warn("%v", err)
-			}
-			if r2, err := conn.Call(&protocol.Request{Op: protocol.OpPending, Pending: &protocol.PendingRequest{ReplicaID: replicaID}}, nil, nil); err == nil {
-				or.Pending = r2.Pending.Outputs
-			}
-		}
-		for _, o := range or.Pending {
-			if o.Pending() {
-				protected = append(protected, o.Path)
-			}
-		}
+		protected = a.collectPending(conn, ws, t, rs, or)
 	}
 
 	// 2. Upload. The command never runs against a partial upload.
 	if !gf.noSync {
-		start := time.Now()
-		stats, err := rs.Upload(a.ctx, t, ws.Root, or.ReplicaPath, uploadRules(ws.Project, protected), a.rsyncStderr(), false)
-		if err != nil {
-			return exitWith(ExitPreRun, fmt.Errorf("%w; the command was not run", err))
+		if err := a.upload(ws, t, rs, or, st, protected, plans); err != nil {
+			return err
 		}
-		st.LastSync, st.LastUpload = time.Now().UTC(), stats.Files
-		switch {
-		case stats.Files == 0:
-			a.debug("project already in sync with %s (%s)", t.Name, time.Since(start).Round(time.Millisecond))
-		default:
-			a.info("synced %d changed file(s) (%s) to %s", stats.Files, humanBytes(stats.Bytes), t.Name)
-		}
-		if a.gf.verbose {
-			for _, n := range stats.Names {
-				a.debug("  ↑ %s", n)
-			}
-		}
-		if len(protected) > 0 {
-			a.info("left %d path(s) with uncollected remote outputs untouched (see `recom status`)", len(protected))
+	}
+
+	// 3. Prepare the environment (venv, node_modules, ...) when the
+	//    dependency files changed since the last setup on this backend.
+	if !gf.noSync && !gf.noSetup && or.Locked {
+		if err := a.runSetup(conn, ws, t, plans, or.Setup, false); err != nil {
+			return err
 		}
 	}
 
 	req := &protocol.ExecRequest{
 		Argv: argv, Display: displayCommand(displayArgv(argv, gf.shell)), Cwd: cwd,
-		Env: ws.Project.Run.Env, Path: ws.Project.Run.Path, Wrapper: ws.Project.Run.Wrapper, EnvMode: ws.Project.Run.EnvMode,
+		Env: runEnv(ws, plans), RelEnv: relEnv(plans), Path: runPath(ws, plans), PathFallback: pathFallback(plans), Wrapper: ws.Project.Run.Wrapper, EnvMode: ws.Project.Run.EnvMode,
 		Shell: gf.shell != "", TTY: gf.tty, Term: os.Getenv("TERM"), Detach: gf.detach, Tmux: ws.Project.Jobs.Tmux,
-		Policy: outputPolicy(ws.Project), Client: ownerName(ws), Local: ws.Root,
+		Policy: outputPolicy(ws.Project, outputExcludes(plans)...), Client: ownerName(ws), Local: ws.Root,
 	}
 	req.Policy.NoCollection = !collectOK
 	if w, h, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
@@ -165,7 +141,7 @@ func runRemote(a *app, args []string) error {
 		return a.launchDetached(conn, ws, t.Name, st, req)
 	}
 
-	exit, runErr := a.execStreaming(conn, req)
+	exit, runErr := a.execStreaming(conn, req, os.Stdout)
 	if runErr != nil {
 		var pe *protocol.Error
 		if errors.As(runErr, &pe) && pe.Code == protocol.ErrExec {
@@ -311,7 +287,7 @@ func (a *app) execGlobal(conn *remote.Conn, host string, argv []string) error {
 	if w, h, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
 		req.Cols, req.Rows = w, h
 	}
-	exit, err := a.execStreaming(conn, req)
+	exit, err := a.execStreaming(conn, req, os.Stdout)
 	if err != nil {
 		var pe *protocol.Error
 		if errors.As(err, &pe) && pe.Code == protocol.ErrExec {
@@ -329,8 +305,10 @@ func (a *app) execGlobal(conn *remote.Conn, host string, argv []string) error {
 	return nil
 }
 
-// execStreaming runs the foreground command with terminal handling.
-func (a *app) execStreaming(conn *remote.Conn, req *protocol.ExecRequest) (*protocol.ExitResult, error) {
+// execStreaming runs the foreground command with terminal handling. The
+// remote stdout goes to stdout (os.Stderr for setup steps, so that
+// `recom cmd > file` only captures the command's own output).
+func (a *app) execStreaming(conn *remote.Conn, req *protocol.ExecRequest, stdout io.Writer) (*protocol.ExitResult, error) {
 	var stdin io.Reader
 	if req.TTY {
 		stdin = os.Stdin
@@ -398,7 +376,7 @@ func (a *app) execStreaming(conn *remote.Conn, req *protocol.ExecRequest) (*prot
 			}
 		}
 	}()
-	exit, err := conn.Exec(req, remote.ExecIO{Stdin: stdin, Stdout: os.Stdout, Stderr: os.Stderr})
+	exit, err := conn.Exec(req, remote.ExecIO{Stdin: stdin, Stdout: stdout, Stderr: os.Stderr})
 	restore()
 	return exit, err
 }
@@ -457,4 +435,57 @@ func subcommandHint(root *cobra.Command, argv []string) string {
 		return fmt.Sprintf("did you mean `recom %s`?", s[0])
 	}
 	return ""
+}
+
+// collectPending downloads outputs that earlier runs left pending (requires
+// the lease) and returns the paths still pending, which the upload must not
+// overwrite.
+func (a *app) collectPending(conn *remote.Conn, ws *config.Workspace, t sshx.Target, rs *rsync.Binary, or *protocol.OpenResult) []string {
+	var auto []protocol.Output
+	for _, o := range or.Pending {
+		if o.Status == protocol.StatusPending && !a.gf.noCollect {
+			auto = append(auto, o)
+		}
+	}
+	if len(auto) > 0 {
+		a.info("collecting %d pending output(s) from earlier runs", len(auto))
+		if _, err := a.collectOutputs(conn, ws, t, rs, or.ReplicaPath, auto, "pending", false); err != nil {
+			a.warn("%v", err)
+		}
+		if r2, err := conn.Call(&protocol.Request{Op: protocol.OpPending, Pending: &protocol.PendingRequest{ReplicaID: ws.ReplicaID()}}, nil, nil); err == nil {
+			or.Pending = r2.Pending.Outputs
+		}
+	}
+	var protected []string
+	for _, o := range or.Pending {
+		if o.Pending() {
+			protected = append(protected, o.Path)
+		}
+	}
+	return protected
+}
+
+// upload syncs the project to the replica.
+func (a *app) upload(ws *config.Workspace, t sshx.Target, rs *rsync.Binary, or *protocol.OpenResult, st *config.HostState, protected []string, plans []toolchain.Plan) error {
+	start := time.Now()
+	stats, err := rs.Upload(a.ctx, t, ws.Root, or.ReplicaPath, uploadRules(ws.Project, protected, syncExcludes(plans)...), a.rsyncStderr(), false)
+	if err != nil {
+		return exitWith(ExitPreRun, fmt.Errorf("%w; the command was not run", err))
+	}
+	st.LastSync, st.LastUpload = time.Now().UTC(), stats.Files
+	switch {
+	case stats.Files == 0:
+		a.debug("project already in sync with %s (%s)", t.Name, time.Since(start).Round(time.Millisecond))
+	default:
+		a.info("synced %d changed file(s) (%s) to %s", stats.Files, humanBytes(stats.Bytes), t.Name)
+	}
+	if a.gf.verbose {
+		for _, n := range stats.Names {
+			a.debug("  ↑ %s", n)
+		}
+	}
+	if len(protected) > 0 {
+		a.info("left %d path(s) with uncollected remote outputs untouched (see `recom status`)", len(protected))
+	}
+	return nil
 }

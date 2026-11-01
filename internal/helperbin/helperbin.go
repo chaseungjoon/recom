@@ -114,7 +114,7 @@ func load(goos, goarch string) (*Helper, error) {
 			}
 		}
 	}
-	return nil, fmt.Errorf("this recom build has no helper for %s backends; use a release build (brew install chaseungjoon/recom/recom) or build with `make build`", platform)
+	return nil, fmt.Errorf("this recom build has no helper for %s backends; use a release build (`recom update`, or the install script) or build with `make build`", platform)
 }
 
 func newHelper(b []byte, src string, self bool) *Helper {

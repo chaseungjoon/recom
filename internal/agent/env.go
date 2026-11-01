@@ -97,7 +97,7 @@ func (m envMap) list() []string {
 }
 
 // buildEnv computes the environment for a remote command.
-func buildEnv(mode string, extra map[string]string, pathPrepend []string, replica string) (envMap, string) {
+func buildEnv(mode string, extra map[string]string, pathPrepend, pathFallback []string, relEnv map[string]string, replica string) (envMap, string) {
 	var warn string
 	base := os.Environ()
 	if mode == "" {
@@ -118,6 +118,18 @@ func buildEnv(mode string, extra map[string]string, pathPrepend []string, replic
 	if _, ok := extra["PYTHONUNBUFFERED"]; !ok {
 		if _, ok := m["PYTHONUNBUFFERED"]; !ok {
 			m["PYTHONUNBUFFERED"] = "1"
+		}
+	}
+	if replica != "" {
+		for k, v := range relEnv {
+			rel, err := CleanRel(v)
+			if err != nil || k == "" || strings.ContainsAny(k, "=\x00") {
+				continue
+			}
+			abs := filepath.Join(replica, filepath.FromSlash(rel))
+			if _, err := os.Stat(abs); err == nil {
+				m[k] = abs
+			}
 		}
 	}
 	for k, v := range extra {
@@ -146,6 +158,11 @@ func buildEnv(mode string, extra map[string]string, pathPrepend []string, replic
 	if m["PATH"] == "" {
 		m["PATH"] = "/usr/local/bin:/usr/bin:/bin"
 	}
+	home := m["HOME"]
+	if home == "" {
+		home = os.Getenv("HOME")
+	}
+	m["PATH"] = appendFallback(m["PATH"], pathFallback, home)
 	m["RECOM"] = "1"
 	return m, warn
 }
@@ -243,5 +260,78 @@ func runOutput(ctx context.Context, env []string, path string, args ...string) s
 }
 
 func envForRequest(r *protocol.ExecRequest, replica string) (envMap, string) {
-	return buildEnv(r.EnvMode, r.Env, r.Path, replica)
+	return buildEnv(r.EnvMode, r.Env, r.Path, r.PathFallback, r.RelEnv, replica)
+}
+
+// appendFallback appends existing fallback directories to a PATH value.
+// Entries may start with "~/" and contain globs; among a glob's matches the
+// highest version wins (~/.nvm/versions/node/v22.1.0 over v18.20.4).
+func appendFallback(pathVal string, entries []string, home string) string {
+	have := map[string]bool{}
+	for _, d := range filepath.SplitList(pathVal) {
+		have[filepath.Clean(d)] = true
+	}
+	for _, e := range entries {
+		if rest, ok := strings.CutPrefix(e, "~/"); ok {
+			if home == "" {
+				continue
+			}
+			e = filepath.Join(home, rest)
+		}
+		if !filepath.IsAbs(e) {
+			continue
+		}
+		dir := filepath.Clean(e)
+		if strings.ContainsAny(e, "*?[") {
+			m, _ := filepath.Glob(e)
+			if len(m) == 0 {
+				continue
+			}
+			sort.Slice(m, func(i, j int) bool { return versionLess(m[j], m[i]) })
+			dir = m[0]
+		}
+		if fi, err := os.Stat(dir); err != nil || !fi.IsDir() || have[dir] {
+			continue
+		}
+		have[dir] = true
+		if pathVal == "" {
+			pathVal = dir
+		} else {
+			pathVal += ":" + dir
+		}
+	}
+	return pathVal
+}
+
+// versionLess compares strings by their embedded number sequences.
+func versionLess(a, b string) bool {
+	na, nb := numbers(a), numbers(b)
+	for i := 0; i < len(na) && i < len(nb); i++ {
+		if na[i] != nb[i] {
+			return na[i] < nb[i]
+		}
+	}
+	if len(na) != len(nb) {
+		return len(na) < len(nb)
+	}
+	return a < b
+}
+
+func numbers(s string) []int {
+	var out []int
+	n, in := 0, false
+	for _, r := range s {
+		if r >= '0' && r <= '9' {
+			n, in = n*10+int(r-'0'), true
+			continue
+		}
+		if in {
+			out = append(out, n)
+			n, in = 0, false
+		}
+	}
+	if in {
+		out = append(out, n)
+	}
+	return out
 }

@@ -18,8 +18,10 @@ import (
 //  3. [sync] include — explicit opt-ins (can override secrets/defaults)
 //  4. secret patterns (always, even with default_excludes = false)
 //  5. built-in excludes (unless default_excludes = false)
-//  6. [sync] exclude
-func uploadRules(p *config.Project, protected []string) []string {
+//  6. toolchain build/environment directories, e.g. target/ for Rust
+//     (unless default_excludes = false)
+//  7. [sync] exclude
+func uploadRules(p *config.Project, protected []string, toolchainExcludes ...string) []string {
 	var r []string
 	for _, x := range policy.Internal {
 		r = append(r, "- "+x)
@@ -40,6 +42,9 @@ func uploadRules(p *config.Project, protected []string) []string {
 		for _, x := range policy.UploadExcludes {
 			r = append(r, "- "+x)
 		}
+		for _, x := range toolchainExcludes {
+			r = append(r, "- "+x)
+		}
 	}
 	for _, x := range p.Sync.Exclude {
 		r = append(r, "- "+x)
@@ -47,12 +52,13 @@ func uploadRules(p *config.Project, protected []string) []string {
 	return r
 }
 
-// outputPolicy converts project settings into the helper's policy.
-func outputPolicy(p *config.Project) protocol.OutputPolicy {
+// outputPolicy converts project settings into the helper's policy;
+// toolchainExcludes are the detected toolchains' build directories.
+func outputPolicy(p *config.Project, toolchainExcludes ...string) protocol.OutputPolicy {
 	maxFile, _ := p.MaxFileSize()
 	maxRun, _ := p.MaxRunSize()
 	return protocol.OutputPolicy{
-		Exclude:     p.Outputs.Exclude,
+		Exclude:     append(append([]string{}, p.Outputs.Exclude...), toolchainExcludes...),
 		Include:     p.Outputs.Include,
 		MaxFileSize: maxFile,
 		MaxRunSize:  maxRun,

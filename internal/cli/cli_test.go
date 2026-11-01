@@ -7,6 +7,7 @@ import (
 
 	"github.com/chaseungjoon/recom/internal/config"
 	"github.com/chaseungjoon/recom/internal/pathmatch"
+	"github.com/chaseungjoon/recom/internal/toolchain"
 )
 
 // parse resolves a command line the way cobra will, without running it.
@@ -123,5 +124,36 @@ func TestLocalName(t *testing.T) {
 		if got := a.localName(ws, in); got != want {
 			t.Errorf("localName(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestToolchainWiring(t *testing.T) {
+	ws := &config.Workspace{Project: &config.Project{}}
+	ws.Project.Run.Path = []string{".venv/bin", "tools/bin"}
+	ws.Project.Run.Env = map[string]string{"RUBYOPT": ""}
+	plans := []toolchain.Plan{
+		{Name: "python", Path: []string{".venv/bin"}},
+		{Name: "node", Path: []string{"node_modules/.bin"}},
+		{Name: "ruby", Env: map[string]string{"RUBYOPT": "-rbundler/setup", "X": "1"}, SyncExclude: []string{"/vendor/bundle/"}},
+	}
+	if got := strings.Join(runPath(ws, plans), ","); got != ".venv/bin,tools/bin,node_modules/.bin" {
+		t.Errorf("runPath = %s", got)
+	}
+	if got := strings.Join(setupPath(ws, plans), ","); got != "tools/bin" {
+		t.Errorf("setupPath must drop toolchain dirs: %s", got)
+	}
+	if env := runEnv(ws, plans); env["RUBYOPT"] != "" || env["X"] != "1" {
+		t.Errorf("[run] env must override toolchain env: %v", env)
+	}
+	p := &config.Project{}
+	p.Sync.Include = []string{"vendor/bundle/keep.rb"}
+	rules := strings.Join(uploadRules(p, nil, syncExcludes(plans)...), "\n")
+	if !strings.Contains(rules, "- /vendor/bundle/") || strings.Index(rules, "+ vendor/bundle/keep.rb") > strings.Index(rules, "- /vendor/bundle/") {
+		t.Errorf("toolchain excludes must come after includes:\n%s", rules)
+	}
+	f := false
+	p.Sync.DefaultExcludes = &f
+	if strings.Contains(strings.Join(uploadRules(p, nil, syncExcludes(plans)...), "\n"), "/vendor/bundle/") {
+		t.Error("default_excludes = false must drop toolchain excludes")
 	}
 }

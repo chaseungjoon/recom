@@ -42,6 +42,11 @@ recom never relies on `~` expansion in quoted remote paths.
 id = "8b0e0f1e-…"          # random UUID; never edit
 # host = "aiworkstation"   # preferred backend for this project
 
+[setup]
+toolchains = ["python"]             # detected by `recom init`; "auto" = detect every run; [] = off
+# command = "make deps"             # extra backend step after the toolchains
+watch = []                          # files whose change re-runs `command`
+
 [sync]
 exclude = ["data/raw/", "*.ckpt"]   # also never upload these
 include = [".env.ci"]               # upload even though a built-in rule excludes it
@@ -57,6 +62,7 @@ max_run_size = "1GB"                # per-run automatic download budget ("0" = u
 env_mode = "login"                  # or "ssh"
 env = { CUDA_VISIBLE_DEVICES = "0", WANDB_MODE = "offline" }
 path = [".venv/bin"]                # prepended to PATH; relative = inside the remote project
+                                    # (toolchain directories are always added)
 wrapper = []                        # argv prefix, e.g. ["conda", "run", "--no-capture-output", "-n", "ml"]
 
 [jobs]
@@ -86,23 +92,29 @@ and which interpreters and compilers it resolves.
 variable. recom sets `PYTHONUNBUFFERED=1` unless you set it, so Python output
 streams live through pipes.
 
-### Python environments
+### Python and other language environments
 
-Create the environment **on the backend**, then point `path` at it:
+You do not need to create environments on the backend yourself. recom reads
+your dependency files (`requirements.txt`, `pyproject.toml`, `uv.lock`,
+`environment.yml`, `package.json`, `Cargo.toml`, `go.mod`, `Gemfile`, ...),
+installs them in the remote replica before a run whenever they changed, and
+puts the environment on `PATH` (`.venv/bin`, `node_modules/.bin`, ...). See
+**[environments.md](environments.md)** for every supported toolchain and the
+`[setup]` options.
+
+`.venv/`, `node_modules/` and the other environment directories are
+excluded from upload and from output detection, so your local macOS
+environment and the remote Linux one never mix.
+
+For layouts recom does not handle, set `[setup] command`, or turn automatic
+setup off (`toolchains = []`) and prepare the backend by hand:
 
 ```sh
-recom --shell 'uv venv .venv && uv pip install -r requirements.txt'   # or python3 -m venv .venv
+recom --shell 'uv venv .venv && uv pip install -r requirements-gpu.txt'
 ```
 
-```toml
-[run]
-path = [".venv/bin"]
-```
-
-`.venv/` is excluded from upload and from output detection, so your local
-macOS virtualenv and the remote Linux one never mix.
-
-For Conda, use the wrapper:
+For an **existing, named** Conda environment on the backend (rather than a
+project-local one from `environment.yml`), use the wrapper:
 
 ```toml
 [run]
@@ -131,7 +143,7 @@ project never costs a full re-upload.
 ```
 ~/.local/share/recom/                 (remote_root, mode 0700)
 ├── bin/recom-helper-<sha256 prefix>  content-addressed helper binaries
-├── projects/<project>-<copy>/        replicas (your project files + outputs)
+├── projects/<project>-<copy>/        replicas (project files, outputs, .venv, node_modules, …)
 └── state/<project>-<copy>/           lease, run manifests, snapshots, job logs (0700)
 ```
 

@@ -29,6 +29,8 @@ runtime.
 | `internal/protocol` | versioned frame format and message types shared by both ends |
 | `internal/agent` | the helper: lease, snapshots, diff, manifests, exec, jobs, supervisor, probes |
 | `internal/collect` | staged, verified, conflict-aware installation of outputs into the project |
+| `internal/toolchain` | detects toolchains from dependency files, builds the backend setup scripts and their fingerprints |
+| `internal/selfupdate` | `recom update`: release lookup, checksum verification, atomic binary replacement |
 | `internal/pathmatch`, `internal/policy` | rsync-style patterns and the built-in exclude/secret lists |
 | `internal/helperbin` | embedded, gzip-compressed Linux helpers (amd64, arm64) |
 
@@ -58,14 +60,27 @@ such as text printed by a chatty `.bashrc`, is discarded and reported by
 output as control data. Malformed frames, unknown versions and corrupt
 manifests are rejected (fail closed).
 
-A run is one SSH session (`open` → upload → `exec` → collect → `mark` →
-`close`). rsync transfers piggyback on the same OpenSSH ControlMaster
-connection, so a warm run costs a few round trips.
+A run is one SSH session (`open` → upload → [setup `exec`] → `exec` →
+collect → `mark` → `close`). rsync transfers piggyback on the same OpenSSH
+ControlMaster connection, so a warm run costs a few round trips.
 
 argv is sent as a JSON array and executed with `execve` after a PATH lookup
 in the *remote* environment. No shell is involved unless `--shell` is used,
-and the only shell strings recom ever builds contain its own validated,
-single-quoted paths.
+or for environment setup, which runs recom's own `/bin/sh` scripts (dependency
+file names and package names inside them are single-quoted).
+
+## Environment setup
+
+The client detects toolchains from the local dependency files and turns each
+into a plan: a POSIX sh script, a fingerprint (SHA-256 over the script and the
+contents of the watched dependency files), PATH entries and excludes. `open`
+returns the stamps in the replica's `.recom/setup/<toolchain>` (fingerprint
+plus a path that must still exist, such as `.venv/bin/python`). For each plan
+whose stamp differs, the client runs the script as an ordinary foreground
+`exec` with output collection off, streaming to stderr; the script writes
+the stamp as its last step, so a failed or interrupted setup is retried next
+time. Files the setup writes are part of the following run's baseline, so they
+are never outputs. See [environments.md](environments.md).
 
 ## Snapshots and attribution
 
@@ -134,7 +149,7 @@ group only after verifying PID + start time.
 
 - Backends must be Linux (amd64 or arm64). Clients: macOS and Linux.
 - Deleting or renaming a local file does not delete the remote copy (no
-  `--delete` in v0.1). Old modules can linger in the replica; clean up with
+  `--delete`). Old modules can linger in the replica; clean up with
   `recom -- rm …` or delete the replica directory.
 - A detached job owns its replica: ordinary runs of the same project on that
   backend wait for it (use `--no-sync`, another backend, or `stop`).

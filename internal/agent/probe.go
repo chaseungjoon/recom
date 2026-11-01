@@ -25,6 +25,9 @@ var probeTools = []struct {
 	{"pip3", []string{"--version"}},
 	{"uv", []string{"--version"}},
 	{"conda", []string{"--version"}},
+	{"node", []string{"--version"}},
+	{"cargo", []string{"--version"}},
+	{"go", []string{"version"}},
 	{"gcc", []string{"--version"}},
 	{"g++", []string{"--version"}},
 	{"clang", []string{"--version"}},
@@ -62,7 +65,7 @@ func (s *server) envReport(r *protocol.EnvRequest) (*protocol.Response, error) {
 			replica = s.replicaPath
 		}
 	}
-	env, warn := buildEnv(r.EnvMode, r.Env, r.Path, replica)
+	env, warn := buildEnv(r.EnvMode, r.Env, r.Path, r.PathFallback, nil, replica)
 	envList := env.list()
 	dir := s.home
 	if replica != "" {

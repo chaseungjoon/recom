@@ -134,6 +134,24 @@ func statusCmd(gf *globalFlags) *cobra.Command {
 			if st.LastCommand != "" {
 				fmt.Fprintf(w, "Last run  %s — %s (%s)\n", st.LastCommand, st.LastOutcome, ago(st.LastRunAt))
 			}
+			for _, p := range installable(a.plans(ws)) {
+				state := "unknown (backend unreachable)"
+				if out.Connected {
+					switch out.Remote.Setup[p.Name] {
+					case p.Fingerprint:
+						state = "ready"
+					case "":
+						state = "not set up yet (runs before the next command, or `recom setup`)"
+					default:
+						state = "dependencies changed (updated before the next command, or `recom setup`)"
+					}
+				}
+				name := p.Name
+				if len(p.Sources) > 0 {
+					name += " (" + strings.Join(p.Sources, ", ") + ")"
+				}
+				fmt.Fprintf(w, "Setup     %s: %s\n", name, state)
+			}
 			if out.Connected {
 				r := out.Remote
 				for _, j := range r.Running {
@@ -200,8 +218,10 @@ here comes from your local machine. To run the remote "env" program use
 			if ws != nil {
 				req.ReplicaID = ws.ReplicaID()
 				req.EnvMode = ws.Project.Run.EnvMode
-				req.Env = ws.Project.Run.Env
-				req.Path = ws.Project.Run.Path
+				plans := a.plans(ws)
+				req.Env = runEnv(ws, plans)
+				req.Path = runPath(ws, plans)
+				req.PathFallback = pathFallback(plans)
 			}
 			resp, err := conn.Call(&protocol.Request{Op: protocol.OpEnv, Env: req}, nil, nil)
 			if err != nil {
@@ -353,8 +373,10 @@ func (a *app) doctorRemote(t sshx.Target, ws *config.Workspace, add func(int, st
 	if ws != nil {
 		req.ReplicaID = ws.ReplicaID()
 		req.EnvMode = ws.Project.Run.EnvMode
-		req.Env = ws.Project.Run.Env
-		req.Path = ws.Project.Run.Path
+		plans := a.plans(ws)
+		req.Env = runEnv(ws, plans)
+		req.Path = runPath(ws, plans)
+		req.PathFallback = pathFallback(plans)
 	}
 	resp, err := conn.Call(&protocol.Request{Op: protocol.OpEnv, Env: req}, nil, nil)
 	if err != nil {

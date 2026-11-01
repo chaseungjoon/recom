@@ -37,12 +37,14 @@ Filters are applied in this order (first match wins):
 | 3 | `[sync] include` | — |
 | 4 | Secrets: `.env`, `.env.*` (but not `.env.example`/`.sample`/`.template`/`.dist`), `.envrc`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.keystore`, `*.jks`, `id_rsa*`, `id_dsa*`, `id_ecdsa*`, `id_ed25519*`, `.ssh/`, `.gnupg/`, `.aws/`, `.azure/`, `.kube/`, `.docker/`, `.config/gcloud/`, `.netrc`, `.git-credentials`, `.npmrc`, `.pypirc`, `credentials.json`, `service-account*.json`, `*.tfstate*`, `.terraform/`, `.vault-token` | with `[sync] include` |
 | 5 | Defaults: `.git/`, `.hg/`, `.svn/`, `.venv/`, `venv/`, `.conda/`, `__pycache__/`, `*.pyc`, `.mypy_cache/`, `.pytest_cache/`, `.ruff_cache/`, `.tox/`, `.nox/`, `.ipynb_checkpoints/`, `node_modules/`, `.idea/`, `.vscode/`, `.DS_Store`, `*.swp`, `._*`, `.cache/`, `wandb/`, `mlruns/`, `lightning_logs/`, `checkpoints/` | `default_excludes = false` |
-| 6 | `[sync] exclude` | — |
+| 6 | Build and environment directories of the project's [toolchains](environments.md): `/target/` (Rust), `target/` (Maven), `build/`, `.gradle/` (Gradle), `/vendor/` (PHP), `/vendor/bundle/`, `/.bundle/` (Ruby), `bin/`, `obj/` (.NET), `/deps/`, `/_build/` (Elixir), `/renv/library/` (R) | `default_excludes = false` |
+| 7 | `[sync] exclude` | — |
 
-Local virtualenvs are excluded on purpose: macOS or ARM wheels are useless on
-a Linux GPU box. Create the environment on the backend instead (see
-[configuration](configuration.md#python-environments)). `data/` and `bin/`
-are **not** excluded by default, because they are often real inputs.
+Local virtualenvs and build directories are excluded on purpose: macOS or ARM
+wheels and binaries are useless on a Linux GPU box. recom builds the
+environment on the backend from your dependency files instead (see
+[environments](environments.md)). `data/` and `bin/` are **not** excluded by
+default (only in .NET projects), because they are often real inputs.
 
 Patterns use rsync syntax: a trailing `/` matches directories only, a leading
 `/` anchors at the project root, `*` stays within one path component, `**`
@@ -75,7 +77,9 @@ Never outputs: deleted files (deletions are counted, never propagated), files
 under `[outputs] exclude` or the default output excludes (`.git/`, `.hg/`,
 `.svn/`, `.venv/`, `venv/`, `.conda/`, `__pycache__/`, `*.pyc`, caches,
 `.ipynb_checkpoints/`, `node_modules/`, `.cache/`, `wandb/`, `*.swp`, `*.tmp`,
-`.nfs*`), secret-looking files, sockets/FIFOs/devices, and symlinks pointing
+`.nfs*`), the toolchains' build and environment directories (rule 6 above;
+fetch a build artifact explicitly with `recom pull target/release/app`),
+files written by the environment setup, secret-looking files, sockets/FIFOs/devices, and symlinks pointing
 outside the project (reported as skipped).
 
 ## Size limits and held outputs

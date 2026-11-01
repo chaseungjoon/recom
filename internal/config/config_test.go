@@ -37,17 +37,17 @@ func TestInitDiscoverAndTemplate(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	root := filepath.Join(t.TempDir(), "proj")
 	os.MkdirAll(filepath.Join(root, "a", "b"), 0o755)
-	p, err := Init(root, "gpu")
+	p, err := Init(root, "gpu", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if p.Host != "gpu" {
 		t.Fatalf("host not recorded: %+v", p)
 	}
-	if _, err := Init(root, ""); err == nil || !strings.Contains(err.Error(), "already a recom project") {
+	if _, err := Init(root, "", nil, nil); err == nil || !strings.Contains(err.Error(), "already a recom project") {
 		t.Fatalf("reinit: %v", err)
 	}
-	if _, err := Init(filepath.Join(root, "a"), ""); err == nil {
+	if _, err := Init(filepath.Join(root, "a"), "", nil, nil); err == nil {
 		t.Fatal("nested init accepted")
 	}
 	ws, err := Discover(filepath.Join(root, "a", "b"))
@@ -76,7 +76,7 @@ func TestInitDiscoverAndTemplate(t *testing.T) {
 func TestInitRefusesHome(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	if _, err := Init(home, ""); err == nil {
+	if _, err := Init(home, "", nil, nil); err == nil {
 		t.Fatal("init in $HOME accepted")
 	}
 }
@@ -86,7 +86,7 @@ func TestWorkingCopyIdentity(t *testing.T) {
 	base := t.TempDir()
 	orig := filepath.Join(base, "orig")
 	os.MkdirAll(orig, 0o755)
-	if _, err := Init(orig, ""); err != nil {
+	if _, err := Init(orig, "", nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	w1, _ := Discover(orig)
