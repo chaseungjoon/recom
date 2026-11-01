@@ -44,20 +44,40 @@ recom python3 heavy_cuda.py
 
 No laggy remote editor, no network filesystem, no daemon, no remote virtualenv to manage by hand.
 
+## Table of Contents
+
+- [Install](#install)
+- [Quick Start](#quick-start)
+- [Dependencies](#dependencies)
+- [What a run does](#what-a-run-does)
+- [Long Jobs](#long-jobs)
+- [More Information](#more-information)
+- [Development](#development)
+- [License](#license)
+
+
 ## Install
 
-### MacOS/Linux
+> You only have to install `recom` on your local machine. No install is needed on the remote compute workstation.
+>
+> `recom` currently only supports MacOS and Linux for local, and Linux for compute backend.
+
+### Requirements
+
+- Local: `OpenSSH`, `rsync 3.x` (on macOS: `brew install rsync`)
+- Backend: A Linux machine, `sshd`, `rsync`, `tmux`(optional), language runtimes (uv is recommended for Python)
+
+### Install Script
+
+- Install
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/chaseungjoon/recom/main/install.sh | sh
 ```
 
-The script above installs `recom` to `~/.local/bin` without sudo, and tells
-you how to add that directory to your `PATH` if needed (macOS does not include
-it by default). To install elsewhere, set `RECOM_INSTALL_DIR`, e.g.
-`curl -fsSL … | RECOM_INSTALL_DIR=/usr/local/bin sh` (uses sudo only then).
+The script above installs `recom` to `~/.local/bin`.
 
-Update with:
+- Update
 
 ```sh
 recom update
@@ -89,11 +109,6 @@ mkdir -p ~/.local/bin && install -m 0755 bin/recom ~/.local/bin/
 
 Use `make build`, not plain `go build`: the client embeds the cross-compiled
 Linux helpers it installs on backends.
-
-### Requirements
-
-- Local: `OpenSSH`, `rsync 3.x` (on macOS: `brew install rsync`)
-- Backend: a Linux machine, `sshd`, `rsync`, `tmux`(optional), language runtimes your projects use (uv is recommended for Python)
 
 ## Quick start
 
@@ -173,7 +188,7 @@ recom stop <id>
 
 A finished job's outputs come home with your next `recom` command, or `recom pull`.
 
-## More
+## More Information
 
 | | |
 |---|---|
