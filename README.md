@@ -6,7 +6,7 @@
 [![Release](https://img.shields.io/github/v/release/chaseungjoon/recom?include_prereleases)](https://github.com/chaseungjoon/recom/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Write locally. Compute remotely.Generated outputs sync locally.**
+**Write locally. Compute remotely. Generated outputs sync locally.**
 
 </div>
 
