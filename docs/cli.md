@@ -119,8 +119,10 @@ Replace this `recom` binary with the latest GitHub release (or the given
 one; downgrades are allowed with `--version`). The archive is verified
 against the release's `checksums.txt`, the new binary must run and report
 the expected version, and the swap is atomic. `--check` only reports whether
-a newer release exists. If the binary's directory is not writable (e.g.
-`/usr/local/bin`), run `sudo recom update`. Backends receive the matching
+a newer release exists. The installer puts `recom` in `~/.local/bin`, which you own, so no
+sudo is needed. If you installed into a directory you cannot write to (e.g.
+`/usr/local/bin`), run `sudo recom update`, or reinstall into `~/.local/bin`
+and remove the old copy. Backends receive the matching
 helper automatically on the next connection.
 
 ## Jobs

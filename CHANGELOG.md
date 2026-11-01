@@ -3,6 +3,22 @@
 All notable changes are documented here. The project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-11-01
+
+### Changed
+
+- `install.sh` now installs into `~/.local/bin` by default and never runs
+  sudo unless `RECOM_INSTALL_DIR` names a directory you cannot write to.
+  Previously it defaulted to `/usr/local/bin` and escalated with sudo from a
+  piped script. When `~/.local/bin` is not on `PATH`, the installer prints the
+  line to add for your shell, and it warns if another `recom` shadows the new
+  one. Docs and release notes use `~/.local/bin` for manual installs too.
+- `recom update` no longer suggests sudo first when it cannot write to the
+  binary's directory; it suggests reinstalling into `~/.local/bin`.
+
+Upgrading from a `/usr/local/bin` install: rerun the install script, then
+`sudo rm /usr/local/bin/recom`.
+
 ## [0.2.0] - 2026-11-01
 
 recom now sets up your project's environment on the backend by itself:
@@ -83,5 +99,6 @@ First public release.
 - Release builds for macOS and Linux (amd64, arm64), SHA-256 checksums,
   Homebrew tap.
 
+[0.2.1]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.1
 [0.2.0]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.0
 [0.1.0]: https://github.com/chaseungjoon/recom/releases/tag/v0.1.0
