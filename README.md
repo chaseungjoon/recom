@@ -4,11 +4,33 @@
 
 [![CI](https://github.com/chaseungjoon/recom/actions/workflows/ci.yml/badge.svg)](https://github.com/chaseungjoon/recom/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/chaseungjoon/recom?include_prereleases)](https://github.com/chaseungjoon/recom/releases)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-red.svg)](LICENSE)
 
-**Write locally. Compute remotely. Generated outputs sync locally.**
+[![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)](docs/environments.md#supported-toolchains)
+[![C](https://img.shields.io/badge/C-A8B9CC?logo=c&logoColor=black)](examples/c-cpp)
+[![C++](https://img.shields.io/badge/C%2B%2B-00599C?logo=cplusplus&logoColor=white)](examples/c-cpp)
+[![CUDA](https://img.shields.io/badge/CUDA-76B900?logo=nvidia&logoColor=white)](examples/cuda-pytorch)
+[![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)](docs/environments.md#supported-toolchains)
+[![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black)](docs/environments.md#supported-toolchains)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](docs/environments.md#supported-toolchains)
+[![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white)](docs/environments.md#supported-toolchains)
+[![Java](https://img.shields.io/badge/Java-ED8B00?logo=openjdk&logoColor=white)](docs/environments.md#supported-toolchains)
+[![Kotlin](https://img.shields.io/badge/Kotlin-7F52FF?logo=kotlin&logoColor=white)](docs/environments.md#supported-toolchains)
+[![Ruby](https://img.shields.io/badge/Ruby-CC342D?logo=ruby&logoColor=white)](docs/environments.md#supported-toolchains)
+[![PHP](https://img.shields.io/badge/PHP-777BB4?logo=php&logoColor=white)](docs/environments.md#supported-toolchains)
+[![Julia](https://img.shields.io/badge/Julia-9558B2?logo=julia&logoColor=white)](docs/environments.md#supported-toolchains)
+[![R](https://img.shields.io/badge/R-276DC3?logo=r&logoColor=white)](docs/environments.md#supported-toolchains)
+[![C#](https://img.shields.io/badge/C%23-512BD4?logo=dotnet&logoColor=white)](docs/environments.md#supported-toolchains)
+[![F#](https://img.shields.io/badge/F%23-378BBA?logo=fsharp&logoColor=white)](docs/environments.md#supported-toolchains)
+[![Elixir](https://img.shields.io/badge/Elixir-4B275F?logo=elixir&logoColor=white)](docs/environments.md#supported-toolchains)
+
+**Write code locally. Compute remotely. Generated outputs sync locally.**
+
+**Supports 17+ languages**
 
 </div>
+
+---
 
 Write code in your macbook air, run the heavy compute on your Linux workstation seamlessly. The output files are automatically sent to your macbook air.
 
