@@ -1,10 +1,14 @@
-# recom
+<div align="center">
+
+# recom - re(mote) com(pute)
 
 [![CI](https://github.com/chaseungjoon/recom/actions/workflows/ci.yml/badge.svg)](https://github.com/chaseungjoon/recom/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/chaseungjoon/recom?include_prereleases)](https://github.com/chaseungjoon/recom/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Write locally. Compute remotely. Bring generated files home.**
+
+</div>
 
 recom runs a command on your GPU workstation (or any Linux box you can `ssh`
 into) as if it were local.
