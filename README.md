@@ -22,14 +22,56 @@ recom: ← outputs/result.json (96 B)
 ## Install
 
 ```sh
+curl -fsSL https://raw.githubusercontent.com/chaseungjoon/recom/main/install.sh | sh
+```
+
+The [install script](install.sh) picks the right build for macOS or Linux
+(amd64/arm64), verifies it against the release's `checksums.txt`, and installs
+`recom` to `/usr/local/bin` (using sudo if needed, otherwise `~/.local/bin`).
+Set `RECOM_VERSION` to pin a release or `RECOM_INSTALL_DIR` to choose the
+location:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/chaseungjoon/recom/main/install.sh | RECOM_VERSION=v0.1.0 RECOM_INSTALL_DIR="$HOME/bin" sh
+```
+
+### Homebrew
+
+macOS and Linux:
+
+```sh
 brew tap chaseungjoon/recom
 brew trust chaseungjoon/recom   # current Homebrew requires this once for third-party taps
 brew install recom
 ```
 
-Or download an archive for macOS or Linux (amd64/arm64) from
-[Releases](https://github.com/chaseungjoon/recom/releases), check it against
-`checksums.txt`, and put `recom` on your `PATH`.
+### Releases tab
+
+Download the archive for your platform from
+[Releases](https://github.com/chaseungjoon/recom/releases), verify it, and
+put `recom` on your `PATH`:
+
+```sh
+curl -LO https://github.com/chaseungjoon/recom/releases/download/v0.1.0/recom_0.1.0_darwin_arm64.tar.gz
+curl -LO https://github.com/chaseungjoon/recom/releases/download/v0.1.0/checksums.txt
+shasum -a 256 --check --ignore-missing checksums.txt
+tar -xzf recom_0.1.0_darwin_arm64.tar.gz && sudo mv recom /usr/local/bin/
+```
+
+### Build from source
+
+Requires Go (see `go.mod`) and `make`:
+
+```sh
+git clone https://github.com/chaseungjoon/recom.git && cd recom
+make build                      # bin/recom, with the Linux helpers embedded
+sudo install -m 0755 bin/recom /usr/local/bin/
+```
+
+Use `make build`, not plain `go build`: the client embeds the cross-compiled
+Linux helpers it installs on backends.
+
+### Requirements
 
 You need OpenSSH and rsync 3.x locally (Homebrew installs rsync on macOS) and,
 on the backend, a Linux machine with `sshd`, rsync, and optionally tmux. No

@@ -3,6 +3,14 @@
 All notable changes are documented here. The project follows
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `install.sh`: one-line installer (`curl -fsSL …/install.sh | sh`) that
+  picks the right release archive, verifies its SHA-256 checksum and installs
+  `recom`; now the default install method in the README.
+
 ## [0.1.0] - 2026-10-31
 
 First public release.

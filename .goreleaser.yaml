@@ -54,6 +54,12 @@ release:
   footer: |
     ## Install
 
+    Install script (macOS and Linux; verifies the checksum):
+
+    ```sh
+    curl -fsSL https://raw.githubusercontent.com/chaseungjoon/recom/main/install.sh | sh
+    ```
+
     Homebrew (macOS and Linux):
 
     ```sh
