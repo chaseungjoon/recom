@@ -44,11 +44,11 @@ recom python3 heavy_cuda.py
 
 ```bash
 # instead of
-g++ -O3 heavy_sim.cpp -o heavy_sim
+g++ heavy_sim.cpp -o heavy_sim
 ./heavy_sim
 
 # run
-recom g++ -O3 heavy_sim.cpp -o heavy_sim
+recom g++ heavy_sim.cpp -o heavy_sim
 recom ./heavy_sim
 ```
 
@@ -77,7 +77,7 @@ No laggy remote editor, no setting up network filesystems, no daemon, no remote 
 - Local: `OpenSSH`, `rsync 3.x` (on macOS: `brew install rsync`)
 - Backend: A Linux machine, `sshd`, `rsync`, `tmux`(optional), language runtimes (uv is recommended for Python)
 
-### Install Script
+### Install Script (Recommended)
 
 - Install
 
@@ -98,14 +98,6 @@ recom update
 Download the archive for your platform from
 [Releases](https://github.com/chaseungjoon/recom/releases), verify it, and
 put `recom` on your `PATH`:
-
-```sh
-curl -LO https://github.com/chaseungjoon/recom/releases/download/v0.2.1/recom_0.2.1_darwin_arm64.tar.gz
-curl -LO https://github.com/chaseungjoon/recom/releases/download/v0.2.1/checksums.txt
-shasum -a 256 --check --ignore-missing checksums.txt
-tar -xzf recom_0.2.1_darwin_arm64.tar.gz
-mkdir -p ~/.local/bin && install -m 0755 recom ~/.local/bin/
-```
 
 ### Build from source
 
@@ -135,13 +127,13 @@ recom python3 src/run.py
 recom nvidia-smi               # anything: gcc, make, pytest, nvcc, ...
 ```
 
-Run from a subdirectory and the command runs in the same subdirectory
-remotely. Outputs land at the matching local paths.
+utputs land at the matching local paths.
 
 ## Dependencies
 
-Declare dependencies the way you already do, once, on your laptop. recom
-installs them on the backend and keeps them in sync:
+Declare dependencies the way you already do, once, on your laptop.
+
+recom installs them on the backend automatically and keeps them in sync:
 
 | You have | recom does on the backend | Your commands get |
 |---|---|---|
@@ -161,30 +153,31 @@ Details in [environments](docs/environments.md).
 
 ## What a run does
 
-1. **Uploads**
+1. **Uploads** files.
 
-   changed files with rsync. Caches, `.git/`, local virtualenvs,
-   build directories and secrets (`.env`, keys, cloud credentials) stay home.
+   * Upload to backend: Changed files with rsync.
+
+   * Does not upload: Caches, `.git/`, local virtualenvs, build directories and secrets (`.env`, keys, cloud credentials).
+
    Nothing is ever deleted remotely. If the upload fails, nothing runs.
-2. **Sets up**
+2. **Sets up** environment automatically
 
-   the environment if a dependency file changed since the last
-   setup on that backend (see [Dependencies](#dependencies)).
+   If a dependency file changed since the last setup on that backend (see [Dependencies](#dependencies)).
 
-3. **Runs**
+3. **Runs** command.
 
-   the command on the backend with its exact arguments, the backend's
+   On the backend with its exact arguments, the backend's
    environment and toolchain, live stdout/stderr, stdin, and its exit code.
    Ctrl-C stops the remote process.
 
 4. **Downloads outputs**
 
-   files the run created or changed, verified by
+   Files the run created or changed, verified by
    SHA-256 and installed atomically. A file you edited locally during the run is
    never overwritten (the remote version goes to `.recom/conflicts/`). Large
    files (over 100 MB by default) stay remote until you `recom pull` them.
 
-If your laptop disconnects, outputs are collected by your next `recom` command.
+   If your laptop disconnects, outputs are collected by your next `recom` command.
 
 ## Long jobs
 
