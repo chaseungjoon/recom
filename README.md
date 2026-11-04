@@ -127,7 +127,7 @@ recom python3 src/run.py
 recom nvidia-smi               # anything: gcc, make, pytest, nvcc, ...
 ```
 
-utputs land at the matching local paths.
+outputs land at the matching local paths.
 
 ## Dependencies
 
