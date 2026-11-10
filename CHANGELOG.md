@@ -3,6 +3,22 @@
 All notable changes are documented here. The project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.2] - 2026-11-10
+
+### Fixed
+
+- recom no longer looks hung after a command that created large outputs.
+  It used to download them silently after the command's last line. Now
+  downloads of 16 MiB or more print `downloading N output(s) (size) from
+  <host>` with a hint about `[outputs] exclude`, plus a live progress line on
+  a terminal. This applies to `recom <cmd>`, pending collections and
+  `recom pull`.
+- Adding a path to `[outputs] exclude` (or narrowing `[outputs] include`)
+  now also applies to outputs that earlier runs left pending. Previously
+  those were still downloaded by the next run. Newly excluded outputs stop
+  being tracked, and outputs `include` no longer matches are held. The remote
+  files are left in place, and `recom pull <path>` still fetches them.
+
 ## [0.2.1] - 2026-11-01
 
 ### Changed
@@ -99,6 +115,7 @@ First public release.
 - Release builds for macOS and Linux (amd64, arm64), SHA-256 checksums,
   Homebrew tap.
 
+[0.2.2]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.2
 [0.2.1]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.1
 [0.2.0]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.0
 [0.1.0]: https://github.com/chaseungjoon/recom/releases/tag/v0.1.0

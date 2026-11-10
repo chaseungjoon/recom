@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/chaseungjoon/recom/internal/protocol"
 )
@@ -170,4 +171,34 @@ func TestInstallRules(t *testing.T) {
 			t.Fatalf("%+v %q", r, l)
 		}
 	})
+}
+
+func TestWatchProgressReportsStagedBytes(t *testing.T) {
+	f := newFixture(t)
+	got := make(chan [2]int64, 16)
+	f.c.Progress = func(done, total int64) {
+		select {
+		case got <- [2]int64{done, total}:
+		default:
+		}
+	}
+	dir := filepath.Join(f.root, "stage")
+	f.local("stage/sub/.part.XYZ", "12345")
+	f.local("stage/whole", "1234567890")
+	stop := f.c.watchProgress(dir, 12)
+	p := <-got
+	stop()
+	if p != [2]int64{12, 12} {
+		t.Fatalf("progress = %v, want staged bytes clamped to the total", p)
+	}
+	select {
+	case <-got:
+	default:
+	}
+	time.Sleep(600 * time.Millisecond)
+	select {
+	case p := <-got:
+		t.Fatalf("progress reported after stop: %v", p)
+	default:
+	}
 }

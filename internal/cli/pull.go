@@ -92,6 +92,7 @@ overwrites them, saving the previous local version under .recom/backups/.
 			}
 
 			if len(rels) == 0 {
+				a.applyOutputPolicy(conn, ws, t, or, outputPolicy(ws.Project, outputExcludes(a.plans(ws))...))
 				for _, o := range or.Pending {
 					if o.Status == protocol.StatusPending || all {
 						rels = append(rels, o.Path)

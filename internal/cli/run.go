@@ -108,6 +108,7 @@ func runRemote(a *app, args []string) error {
 	//    nothing generated remotely can be lost or overwritten.
 	var protected []string
 	if or.Locked {
+		a.applyOutputPolicy(conn, ws, t, or, outputPolicy(ws.Project, outputExcludes(plans)...))
 		protected = a.collectPending(conn, ws, t, rs, or)
 	}
 

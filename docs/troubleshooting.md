@@ -20,6 +20,7 @@ Add `-v` to any command to see the exact ssh and rsync invocations.
 | `working directory … does not exist on the backend` | You are in a directory that is excluded from sync (`.venv/`, `node_modules/`, …). Run recom from the project or a synced subdirectory. |
 | `the project is busy on this backend: detached job …` | A job owns the replica. `recom logs <id> -f`, `recom stop <id>`, or `recom --no-sync <cmd>` for quick checks. |
 | `waiting for run … by …` | Another run of this working copy is in progress. It continues once that finishes (Ctrl-C to give up). |
+| recom seems stuck after the command finished | It is downloading the run's outputs (files the command created or changed, e.g. a dataset it fetched). From 16 MiB on, recom prints `downloading N output(s) (size)` and, on a terminal, a live progress line. Ctrl-C stops the download and leaves the outputs pending for `recom pull`. Files that should stay on the backend belong in `[outputs] exclude`, e.g. `exclude = ["/data/**"]`. |
 | An output did not come back | `recom status` lists pending and held outputs with the reason. Fetch with `recom pull <path>` or `recom pull --all`. |
 | `conflict: <file> was changed locally …` | Your version was kept; the remote one is in `.recom/conflicts/<run>/`. Merge by hand; your version is uploaded on the next run. |
 | Exit 75 | The command succeeded but some outputs could not be downloaded; they stay pending and are retried on the next run. |

@@ -50,6 +50,49 @@ type Collector struct {
 	RemoteDir string
 	Force     bool
 	Stderr    io.Writer
+	// Progress, if set, is called about twice a second while files are
+	// downloading, with the bytes staged so far and the total to fetch.
+	Progress func(done, total int64)
+}
+
+// watchProgress reports the size of dir to c.Progress until the returned
+// stop function is called. Sizes come from the files rsync writes into the
+// staging area, so this works with any rsync version.
+func (c *Collector) watchProgress(dir string, total int64) (stop func()) {
+	if c.Progress == nil || total <= 0 {
+		return func() {}
+	}
+	quit, finished := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(finished)
+		tick := time.NewTicker(500 * time.Millisecond)
+		defer tick.Stop()
+		for {
+			select {
+			case <-quit:
+				return
+			case <-tick.C:
+				c.Progress(min(dirSize(dir), total), total)
+			}
+		}
+	}()
+	return func() {
+		close(quit)
+		<-finished
+	}
+}
+
+func dirSize(dir string) int64 {
+	var n int64
+	_ = filepath.WalkDir(dir, func(_ string, d fs.DirEntry, err error) error {
+		if err == nil && d.Type().IsRegular() {
+			if fi, err := d.Info(); err == nil {
+				n += fi.Size()
+			}
+		}
+		return nil
+	})
+	return n
 }
 
 // SafeRel validates a remote-supplied relative path for local installation.
@@ -108,6 +151,7 @@ func (c *Collector) Collect(ctx context.Context, items []protocol.Output, batch 
 	}
 	results := make([]Result, len(items))
 	var download []string
+	var downloadBytes int64
 	for i, it := range items {
 		results[i] = Result{Output: it}
 		rel, err := SafeRel(it.Path)
@@ -133,10 +177,14 @@ func (c *Collector) Collect(ctx context.Context, items []protocol.Output, batch 
 			}
 		}
 		download = append(download, rel)
+		downloadBytes += it.Size
 	}
 	var dlErr error
 	if len(download) > 0 {
-		dlErr = c.Rsync.Download(ctx, c.Target, c.RemoteDir, filepath.Join(c.Root, stageRel), download, c.Stderr)
+		stageDir := filepath.Join(c.Root, stageRel)
+		stop := c.watchProgress(stageDir, downloadBytes)
+		dlErr = c.Rsync.Download(ctx, c.Target, c.RemoteDir, stageDir, download, c.Stderr)
+		stop()
 	}
 	for i := range items {
 		if results[i].Status != "" {

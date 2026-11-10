@@ -7,6 +7,7 @@ import (
 
 	"github.com/chaseungjoon/recom/internal/config"
 	"github.com/chaseungjoon/recom/internal/pathmatch"
+	"github.com/chaseungjoon/recom/internal/protocol"
 	"github.com/chaseungjoon/recom/internal/toolchain"
 )
 
@@ -155,5 +156,34 @@ func TestToolchainWiring(t *testing.T) {
 	p.Sync.DefaultExcludes = &f
 	if strings.Contains(strings.Join(uploadRules(p, nil, syncExcludes(plans)...), "\n"), "/vendor/bundle/") {
 		t.Error("default_excludes = false must drop toolchain excludes")
+	}
+}
+
+func TestPendingPolicyMarksAppliesCurrentRules(t *testing.T) {
+	pending := []protocol.Output{
+		{RunID: "r1", Path: "data/swe/train-0.parquet", Status: protocol.StatusPending},
+		{RunID: "r1", Path: "data/big.parquet", Status: protocol.StatusHeld},
+		{RunID: "r1", Path: "results/metrics.json", Status: protocol.StatusPending},
+		{RunID: "r1", Path: "logs/run.txt", Status: protocol.StatusPending},
+		{RunID: "r1", Path: "logs/held.txt", Status: protocol.StatusHeld},
+		{RunID: "r1", Path: "data/done.parquet", Status: protocol.StatusCollected},
+	}
+	marks := pendingPolicyMarks(pending, protocol.OutputPolicy{Exclude: []string{"/data/**"}, Include: []string{"results/"}})
+	got := map[string]string{}
+	for _, m := range marks {
+		got[m.Path] = m.Status
+	}
+	want := map[string]string{
+		"data/swe/train-0.parquet": protocol.StatusDismissed,
+		"data/big.parquet":         protocol.StatusDismissed,
+		"logs/run.txt":             protocol.StatusHeld,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("marks = %v, want %v", got, want)
+	}
+	for p, s := range want {
+		if got[p] != s {
+			t.Errorf("%s: got %q, want %q", p, got[p], s)
+		}
 	}
 }

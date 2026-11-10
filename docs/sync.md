@@ -95,13 +95,19 @@ run summary and `recom status` with the exact reason and the command to fetch
 them (`recom pull <path>` or `recom pull --all`), and they are protected from
 being overwritten by uploads until you collect or dismiss them.
 
+Changing `exclude` or `include` also applies to outputs that earlier runs left
+pending. On the next run or `recom pull`, newly excluded outputs stop being
+tracked, and pending outputs `include` no longer matches become held. The
+remote files are left in place, and `recom pull <path>` still fetches them.
+
 ## Installing outputs locally
 
 Each output is downloaded with rsync into `.recom/staging/<run>/` (same
 filesystem as the project, partial files kept for resumption), checked against
 the SHA-256 recorded on the backend, and moved into place with an atomic
 rename through Go's `os.Root`, which refuses any path or symlink that would
-escape the project. Then:
+escape the project. Downloads of 16 MiB or more are announced, with a live
+progress line when stderr is a terminal. Then:
 
 | Local destination | Result |
 |---|---|
