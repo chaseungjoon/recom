@@ -55,11 +55,13 @@ func TestArgsAndQuoting(t *testing.T) {
 
 func TestControlDirRejectsUnsafeFallback(t *testing.T) {
 	// Short base so XDG_RUNTIME_DIR/recom fits the socket path limit.
-	base, err := os.MkdirTemp("", "rc")
+	// Explicit /tmp: macOS's default TMPDIR is too long.
+	base, err := os.MkdirTemp("/tmp", "rc")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.RemoveAll(base) })
+	t.Setenv("TMPDIR", base)
 	// Force the fallback: a cache path too long for a socket.
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(base, strings.Repeat("x", 100)))
 	t.Setenv("RECOM_NO_MULTIPLEX", "")
