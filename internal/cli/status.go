@@ -205,6 +205,9 @@ here comes from your local machine. To run the remote "env" program use
 			if errors.Is(err, config.ErrNoProject) {
 				ws = nil
 			}
+			if err := a.ensureTrusted(ws); err != nil {
+				return err
+			}
 			t, err := a.target(ws)
 			if err != nil {
 				return err
@@ -315,6 +318,9 @@ upgraded if needed), backend rsync/tmux/disk space, and the replica lease.`,
 				ws = nil
 			} else {
 				add(0, "project", "%s (replica %s)", ws.Root, ws.ReplicaID())
+				if !ws.Trusted() {
+					add(1, "trust", "%s sets backend commands that are not approved; run `recom trust` after reviewing them", config.ProjectFile)
+				}
 			}
 			if g != nil {
 				t, err := a.target(ws)
@@ -370,7 +376,7 @@ func (a *app) doctorRemote(t sshx.Target, ws *config.Workspace, add func(int, st
 		add(1, "helper", "helper reports version %s, client is %s", conn.Ack.HelperVersion, buildinfo.Version)
 	}
 	req := &protocol.EnvRequest{}
-	if ws != nil {
+	if ws != nil && ws.Trusted() {
 		req.ReplicaID = ws.ReplicaID()
 		req.EnvMode = ws.Project.Run.EnvMode
 		plans := a.plans(ws)

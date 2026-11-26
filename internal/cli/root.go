@@ -46,6 +46,7 @@ type globalFlags struct {
 	verbose bool
 	quiet   bool
 	json    bool
+	trust   bool
 
 	noSync    bool
 	noSetup   bool
@@ -113,6 +114,7 @@ func NewRoot(stdout, stderr io.Writer) *cobra.Command {
 	pf.BoolVarP(&gf.verbose, "verbose", "v", false, "show what recom is doing (ssh/rsync commands, file lists)")
 	pf.BoolVarP(&gf.quiet, "quiet", "q", false, "only print errors and warnings from recom")
 	pf.BoolVar(&gf.json, "json", false, "machine-readable output for administrative commands")
+	pf.BoolVar(&gf.trust, "trust", false, "approve the backend commands set by this project's .recom.toml (see `recom trust`)")
 
 	f := root.Flags()
 	f.BoolVar(&gf.noSync, "no-sync", false, "skip the pre-run upload (e.g. recom --no-sync nvidia-smi)")
@@ -129,7 +131,7 @@ func NewRoot(stdout, stderr io.Writer) *cobra.Command {
 			root.AddCommand(c)
 		}
 	}
-	add("setup", sshCmd(gf), hostsCmd(gf), defaultCmd(gf), initCmd(gf), setupCmd(gf), updateCmd(gf))
+	add("setup", sshCmd(gf), hostsCmd(gf), defaultCmd(gf), initCmd(gf), trustCmd(gf), setupCmd(gf), updateCmd(gf))
 	add("jobs", jobsCmd(gf), logsCmd(gf), attachCmd(gf), stopCmd(gf), pullCmd(gf))
 	add("info", statusCmd(gf), envCmd(gf), doctorCmd(gf), versionCmd(gf))
 	root.AddCommand(&cobra.Command{

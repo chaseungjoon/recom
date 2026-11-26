@@ -200,6 +200,7 @@ A finished job's outputs come home with your next `recom` command, or `recom pul
 | `recom --no-sync nvidia-smi` | skip the upload |
 | `recom --no-setup python3 x.py` | skip the environment setup once |
 | `recom setup` · `recom update` | prepare the backend now · update recom itself |
+| `recom trust` | approve backend commands set by a cloned `.recom.toml` |
 | `recom status` · `recom env` · `recom doctor` | pending outputs, remote toolchain/GPU, diagnostics |
 
 - [CLI reference](docs/cli.md): every command, flag and exit code

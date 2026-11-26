@@ -310,6 +310,8 @@ recorded as this project's preferred backend.`,
 			for _, p := range plans {
 				names = append(names, p.Name)
 			}
+			_, statErr := os.Lstat(filepath.Join(cwd, config.ProjectFile))
+			created := os.IsNotExist(statErr)
 			p, err := config.Init(cwd, gf.host, names, toolchain.Paths(plans))
 			if err != nil {
 				return err
@@ -322,6 +324,15 @@ recorded as this project's preferred backend.`,
 			a.describePlans(plans)
 			ws, err := a.workspace()
 			if err != nil {
+				return err
+			}
+			// A file init just wrote is the user's own; an existing one may
+			// come from a cloned repository and still needs approval.
+			if created {
+				if err := ws.Trust(); err != nil {
+					return err
+				}
+			} else if err := a.ensureTrusted(ws); err != nil {
 				return err
 			}
 			return a.initSetup(ws, a.plans(ws), noSetup)
