@@ -294,6 +294,9 @@ docs/environments.md). Toolchains come from [setup] in .recom.toml.
 			if err != nil {
 				return exitWith(ExitPreRun, err)
 			}
+			if err := a.ensureTrusted(ws); err != nil {
+				return err
+			}
 			res := toolchain.Resolve(ws.Root, ws.Project.Setup.Toolchain())
 			for _, h := range res.Hints {
 				a.info("%s", h)

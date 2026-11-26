@@ -84,6 +84,15 @@ func TestSetupCommandWatchFailureAndNoSetup(t *testing.T) {
 	}
 	write(t, dir, "deps/a.txt", "1\n")
 
+	// A changed setup.command needs approval before anything runs.
+	if r := run(t, dir, "cat", "setup-marker.txt"); r.code != 125 || !strings.Contains(r.stderr, "recom trust") {
+		t.Fatalf("unapproved setup.command must be refused: %s", r)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "setup-marker.txt")); err == nil {
+		t.Fatal("setup ran before approval")
+	}
+	mustRun(t, dir, "trust")
+
 	r := mustRun(t, dir, "cat", "setup-marker.txt")
 	if strings.Count(r.stdout, "built") != 1 || !strings.Contains(r.stderr, "running the [setup] command") {
 		t.Fatalf("custom command did not run first: %s", r)

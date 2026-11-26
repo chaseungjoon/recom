@@ -30,6 +30,18 @@ What recom guarantees, and what is in scope for reports:
   tampering by code running as you on the backend, so the client re-validates
   every output itself (paths, symlink targets, and no writes into `.git/`,
   `.hg/` or `.svn/`).
+- Settings in `.recom.toml` that run code on the backend for every command
+  (`setup.command`, `run.wrapper`, `run.env`, `run.path`) are used only after
+  you approve them for that working copy (`recom trust`, `--trust`, or the
+  prompt), and again after they change. Approvals live in your recom config
+  directory, never in the project. Automatic toolchain setup (pip, npm, …)
+  still runs the project's own install steps, as building any project does.
+
+- Releases from v0.2.4 on sign `checksums.txt` with an Ed25519 key
+  (`checksums.txt.sig`). `recom update` always checks the signature against
+  the key built into recom, and `install.sh` checks it when OpenSSL 3 is
+  available. A tampered release asset is refused even though it comes from
+  the same place as the checksums.
 
 Residual risks: files you explicitly include, secrets embedded in ordinary
 source files, and anything printed by your own programs. See

@@ -48,6 +48,9 @@ func runRemote(a *app, args []string) error {
 	} else if err != nil {
 		return exitWith(ExitPreRun, err)
 	}
+	if err := a.ensureTrusted(ws); err != nil {
+		return err
+	}
 	t, err := a.target(ws)
 	if err != nil {
 		return exitWith(ExitPreRun, err)

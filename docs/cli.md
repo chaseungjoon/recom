@@ -104,6 +104,16 @@ backend right away. `--no-setup` only writes the configuration; the first run
 then does the setup. A project without dependency files uploads nothing at
 init.
 
+### `recom trust`
+
+Approves the settings in `.recom.toml` that run code on the backend for every
+command: `setup.command`, `run.wrapper`, `run.env` and `run.path`. A
+repository you clone can set these, so recom asks before using them in a new
+working copy and again after they change. On a terminal it prompts; otherwise
+it refuses (exit 125) until you run `recom trust` or pass `--trust`. A
+`.recom.toml` created by `recom init` is approved automatically. Approvals are
+stored per working copy in `~/.config/recom/trust/`, never in the project.
+
 ### `recom setup [--force] [--clean]`
 
 Upload the project and run its environment setup now: the step every run
@@ -117,7 +127,9 @@ Setup output goes to stderr.
 
 Replace this `recom` binary with the latest GitHub release (or the given
 one; downgrades are allowed with `--version`). The archive is verified
-against the release's `checksums.txt`, the new binary must run and report
+against the release's `checksums.txt`, whose Ed25519 signature
+(`checksums.txt.sig`, releases from v0.2.4 on) must match the key built into
+recom. The new binary must run and report
 the expected version, and the swap is atomic. `--check` only reports whether
 a newer release exists. The installer puts `recom` in `~/.local/bin`, which you own, so no
 sudo is needed. If you installed into a directory you cannot write to (e.g.
