@@ -18,12 +18,12 @@ func sum(s string) string {
 }
 
 func TestSafeRel(t *testing.T) {
-	for _, bad := range []string{"", "/etc/passwd", "../x", "a/../../x", "a/./b", "a//b", ".recom/local.toml", ".recom", ".recom.toml", "a\x00b", "."} {
+	for _, bad := range []string{"", "/etc/passwd", "../x", "a/../../x", "a/./b", "a//b", ".recom/local.toml", ".recom", ".recom.toml", "a\x00b", ".", ".git/hooks/pre-commit", "sub/.git/config", ".git", ".hg/hgrc", "x/.svn/entries"} {
 		if _, err := SafeRel(bad); err == nil {
 			t.Errorf("SafeRel(%q) accepted", bad)
 		}
 	}
-	for _, ok := range []string{"a", "a/b.txt", "-dash", "x/.recom/y", "sp ace/ü"} {
+	for _, ok := range []string{"a", "a/b.txt", "-dash", "x/.recom/y", "sp ace/ü", ".github/workflows/ci.yml", "a.git/x", ".gitignore"} {
 		if _, err := SafeRel(ok); err != nil {
 			t.Errorf("SafeRel(%q): %v", ok, err)
 		}
@@ -225,5 +225,32 @@ func TestCollectRejectsUnsafeBatch(t *testing.T) {
 	}
 	if _, err := c.Collect(context.Background(), items, "261127abcdef0123"); err != nil {
 		t.Fatalf("valid run id rejected: %v", err)
+	}
+}
+
+func TestCollectRejectsEscapingSymlinks(t *testing.T) {
+	dir := t.TempDir()
+	c := &Collector{Root: dir}
+	items := []protocol.Output{
+		{Path: "abs", Type: "symlink", Link: "/home/you/.ssh"},
+		{Path: "up", Type: "symlink", Link: "../outside"},
+		{Path: "a/up2", Type: "symlink", Link: "../../outside"},
+		{Path: "self", Type: "symlink", Link: "."},
+		{Path: "a/ok", Type: "symlink", Link: "../data/file"},
+	}
+	res, err := c.Collect(context.Background(), items, "261127abcdef0123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range res[:4] {
+		if r.Status != Skipped {
+			t.Errorf("%s -> %s: status %q, want skipped", r.Output.Path, r.Output.Link, r.Status)
+		}
+		if _, err := os.Lstat(filepath.Join(dir, r.Output.Path)); !os.IsNotExist(err) {
+			t.Errorf("%s: escaping symlink installed", r.Output.Path)
+		}
+	}
+	if res[4].Status != Collected {
+		t.Errorf("in-project symlink: status %q (%s)", res[4].Status, res[4].Note)
 	}
 }
