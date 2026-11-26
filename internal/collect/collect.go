@@ -15,6 +15,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -132,12 +133,20 @@ func sameStat(a, b fs.FileInfo) bool {
 	return a.Size() == b.Size() && a.ModTime().Equal(b.ModTime()) && a.Mode() == b.Mode()
 }
 
+// batchRe limits batch names to a single plain path component. The batch
+// usually comes from the backend (the run id), so it must never be able to
+// redirect the staging or conflict directory elsewhere in the project.
+var batchRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
+
 // Collect downloads and installs items. batch names the staging/conflict
 // subdirectory (normally the run id). It never returns partially installed
 // files: anything not verified stays pending (status Failed).
 func (c *Collector) Collect(ctx context.Context, items []protocol.Output, batch string) ([]Result, error) {
 	if len(items) == 0 {
 		return nil, nil
+	}
+	if !batchRe.MatchString(batch) {
+		return nil, fmt.Errorf("refusing to collect: invalid batch name %q", batch)
 	}
 	root, err := os.OpenRoot(c.Root)
 	if err != nil {
