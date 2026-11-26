@@ -29,7 +29,8 @@ What recom guarantees, and what is in scope for reports:
   and needs no root. The check catches stale or corrupted installs, not
   tampering by code running as you on the backend, so the client re-validates
   every output itself (paths, symlink targets, and no writes into `.git/`,
-  `.hg/` or `.svn/`).
+  `.hg/` or `.svn/`). Symlink outputs may not point into those directories,
+  and outputs are never written through a parent directory that is a symlink.
 - Settings in `.recom.toml` that run code on the backend for every command
   (`setup.command`, `run.wrapper`, `run.env`, `run.path`) are used only after
   you approve them for that working copy (`recom trust`, `--trust`, or the
