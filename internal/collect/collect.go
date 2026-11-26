@@ -105,16 +105,19 @@ func SafeRel(p string) (string, error) {
 	if c == "." || c == ".." || strings.HasPrefix(c, "../") || c != p {
 		return "", fmt.Errorf("unsafe path %q", p)
 	}
+	// Names are compared case-insensitively: on macOS (APFS) and Windows
+	// ".GIT" and ".git" are the same directory.
 	first := strings.SplitN(c, "/", 2)[0]
-	if first == config.LocalDir || c == config.ProjectFile {
+	if strings.EqualFold(first, config.LocalDir) || strings.EqualFold(c, config.ProjectFile) {
 		return "", fmt.Errorf("refusing to overwrite recom's own file %q", p)
 	}
 	// Writing into VCS metadata (e.g. .git/hooks) would let the backend run
 	// code locally, so these are refused regardless of what the helper sent.
 	for _, part := range strings.Split(c, "/") {
-		switch part {
-		case ".git", ".hg", ".svn":
-			return "", fmt.Errorf("refusing to write into version control metadata %q", p)
+		for _, vcs := range []string{".git", ".hg", ".svn"} {
+			if strings.EqualFold(part, vcs) {
+				return "", fmt.Errorf("refusing to write into version control metadata %q", p)
+			}
 		}
 	}
 	return c, nil
