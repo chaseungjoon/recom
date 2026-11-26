@@ -127,7 +127,9 @@ Setup output goes to stderr.
 
 Replace this `recom` binary with the latest GitHub release (or the given
 one; downgrades are allowed with `--version`). The archive is verified
-against the release's `checksums.txt`, the new binary must run and report
+against the release's `checksums.txt`, whose Ed25519 signature
+(`checksums.txt.sig`, releases from v0.2.4 on) must match the key built into
+recom. The new binary must run and report
 the expected version, and the swap is atomic. `--check` only reports whether
 a newer release exists. The installer puts `recom` in `~/.local/bin`, which you own, so no
 sudo is needed. If you installed into a directory you cannot write to (e.g.

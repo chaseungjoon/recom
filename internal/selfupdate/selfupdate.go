@@ -1,5 +1,6 @@
 // Package selfupdate replaces the running recom binary with a published
-// GitHub release, verifying the archive against the release's checksums.txt.
+// GitHub release, verifying the archive against the release's checksums.txt
+// and, for releases from FirstSigned on, checksums.txt's Ed25519 signature.
 package selfupdate
 
 import (
@@ -7,6 +8,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -37,6 +39,8 @@ type Updater struct {
 	OS      string
 	Arch    string
 	Client  *http.Client
+	// PublicKey verifies checksums.txt.sig; nil means ReleasePublicKey.
+	PublicKey ed25519.PublicKey
 }
 
 // New returns an updater for this platform.
@@ -104,13 +108,23 @@ func (u *Updater) get(ctx context.Context, url string) ([]byte, error) {
 }
 
 // Fetch downloads tag's archive for this platform, verifies its SHA-256
-// against checksums.txt, and returns the recom binary inside it.
+// against checksums.txt (whose signature is checked for releases from
+// FirstSigned on), and returns the recom binary inside it.
 func (u *Updater) Fetch(ctx context.Context, tag string) ([]byte, error) {
 	name := u.Archive(tag)
 	base := u.BaseURL + "/download/" + tag + "/"
 	sums, err := u.get(ctx, base+"checksums.txt")
 	if err != nil {
 		return nil, err
+	}
+	if needsSignature(tag) {
+		sig, err := u.get(ctx, base+SignatureAsset)
+		if err != nil {
+			return nil, fmt.Errorf("release %s is not signed: %w", tag, err)
+		}
+		if err := Verify(u.PublicKey, sums, sig); err != nil {
+			return nil, fmt.Errorf("release %s: %w", tag, err)
+		}
 	}
 	want := ""
 	for _, line := range strings.Split(string(sums), "\n") {

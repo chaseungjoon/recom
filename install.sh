@@ -55,6 +55,36 @@ sha256_of() {
 	fi
 }
 
+# Ed25519 key that signs checksums.txt (checksums.txt.sig) from v0.2.4 on.
+# Keep in sync with ReleasePublicKey in internal/selfupdate/sign.go.
+RELEASE_PUBKEY_PEM='-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAfYKb92UP3iQvFLxRU6GTnbwDVwcqW/WjWPPqcULr9ss=
+-----END PUBLIC KEY-----'
+
+signed_release() { # version: does it ship checksums.txt.sig?
+	v=${1%%[-+]*}
+	ma=${v%%.*}
+	rest=${v#*.}
+	mi=${rest%%.*}
+	pa=${rest#*.}
+	case "${ma}${mi}${pa}" in '' | *[!0-9]*) return 0 ;; esac
+	[ "$ma" -gt 0 ] || [ "$mi" -gt 2 ] || { [ "$mi" -eq 2 ] && [ "$pa" -ge 4 ]; }
+}
+
+verify_signature() { # checksums sigfile
+	if ! has openssl || ! openssl version 2>/dev/null | grep -q '^OpenSSL [3-9]'; then
+		say "warning: OpenSSL 3 not found; skipping the release signature check (the checksum is still verified)"
+		return 0
+	fi
+	printf '%s\n' "$RELEASE_PUBKEY_PEM" >"$tmp/release.pem"
+	tr -d '\r\n' <"$2" | openssl base64 -d -A >"$tmp/sig.bin" 2>/dev/null ||
+		die "checksums.txt.sig is malformed"
+	openssl pkeyutl -verify -pubin -inkey "$tmp/release.pem" -rawin \
+		-in "$1" -sigfile "$tmp/sig.bin" >/dev/null 2>&1 ||
+		die "checksums.txt signature is invalid; refusing to install"
+	say "signature verified"
+}
+
 detect_platform() {
 	case "$(uname -s)" in
 		Darwin) os=darwin ;;
@@ -119,6 +149,11 @@ main() {
 		die "download failed: ${BASE_URL}/download/${tag}/${archive}"
 	download "${BASE_URL}/download/${tag}/checksums.txt" "$tmp/checksums.txt" ||
 		die "download failed: ${BASE_URL}/download/${tag}/checksums.txt"
+	if signed_release "$version"; then
+		download "${BASE_URL}/download/${tag}/checksums.txt.sig" "$tmp/checksums.txt.sig" ||
+			die "download failed: ${BASE_URL}/download/${tag}/checksums.txt.sig (release is not signed)"
+		verify_signature "$tmp/checksums.txt" "$tmp/checksums.txt.sig"
+	fi
 
 	want=$(awk -v f="$archive" '$2 == f { print $1 }' "$tmp/checksums.txt")
 	[ -n "$want" ] || die "${archive} is not listed in checksums.txt"

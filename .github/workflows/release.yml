@@ -33,6 +33,14 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Sign checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          RECOM_SIGNING_KEY: ${{ secrets.RECOM_SIGNING_KEY }}
+        run: |
+          go run ./internal/tools/signrelease dist/checksums.txt
+          gh release upload "$TAG" dist/checksums.txt.sig --repo "$GITHUB_REPOSITORY"
       - name: Verify release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -41,6 +49,8 @@ jobs:
           mkdir verify && cd verify
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY"
           sha256sum --check checksums.txt
+          (cd .. && go run ./internal/tools/signrelease -verify verify/checksums.txt)
+          RECOM_VERSION="$TAG" RECOM_INSTALL_DIR="$PWD/bin" sh ../install.sh
           tar -xzf recom_${TAG#v}_linux_amd64.tar.gz
           ./recom version | tee /dev/stderr | grep -q "recom ${TAG#v}"
           ./recom version | grep -q "linux/amd64, linux/arm64"
