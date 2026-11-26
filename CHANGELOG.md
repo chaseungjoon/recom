@@ -3,6 +3,26 @@
 All notable changes are documented here. The project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.4] - 2026-11-27
+
+### Security
+
+- Settings in `.recom.toml` that run code on the backend for every command
+  (`setup.command`, `run.wrapper`, `run.env`, `run.path`) now need your
+  approval per working copy, and again whenever they change. A repository
+  you clone could otherwise run code on the backend even for a harmless
+  `recom nvidia-smi`. On a terminal recom asks; otherwise it stops (exit 125)
+  until you run the new `recom trust` command or pass `--trust`. Approvals
+  are stored in `~/.config/recom/trust/`, never in the project. A
+  `.recom.toml` created by `recom init` is approved automatically.
+- Releases now sign `checksums.txt` with Ed25519 (`checksums.txt.sig`).
+  `recom update` refuses releases from v0.2.4 on unless the signature matches
+  the key built into recom. `install.sh` checks it when OpenSSL 3 is
+  available.
+- Output paths such as `.GIT/hooks/...` are refused like `.git/...`. On
+  case-insensitive filesystems (macOS by default) they previously bypassed
+  the v0.2.3 guard and could plant a git hook.
+
 ## [0.2.3] - 2026-11-27
 
 ### Security
@@ -136,6 +156,7 @@ First public release.
 - Release builds for macOS and Linux (amd64, arm64), SHA-256 checksums,
   Homebrew tap.
 
+[0.2.4]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.4
 [0.2.3]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.3
 [0.2.2]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.2
 [0.2.1]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.1
