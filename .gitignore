@@ -13,3 +13,4 @@ coverage.out
 
 # recom working-copy state (when dogfooding)
 .recom/
+BUGS.md
