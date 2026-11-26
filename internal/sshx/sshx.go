@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/chaseungjoon/recom/internal/config"
 )
@@ -55,13 +56,46 @@ type Target struct {
 	Host *config.Host
 }
 
-func controlDir() string {
-	d := filepath.Join(config.CacheDir(), "ssh")
+// controlDir returns a private directory for ControlMaster sockets. OpenSSH
+// does not check who owns a control socket, so the directory must not be
+// writable (or replaceable) by other users.
+func controlDir() (string, error) {
 	// Unix socket paths are limited (~104 bytes on macOS); %C expands to 40 hex chars.
-	if len(d)+42 > 100 {
-		d = filepath.Join(os.TempDir(), "recom-"+strconv.Itoa(os.Getuid()))
+	fits := func(d string) bool { return len(d)+42 <= 100 }
+	if d := filepath.Join(config.CacheDir(), "ssh"); fits(d) {
+		if err := os.MkdirAll(d, 0o700); err != nil {
+			return "", err
+		}
+		return d, checkPrivateDir(d)
 	}
-	return d
+	d := filepath.Join(os.TempDir(), "recom-"+strconv.Itoa(os.Getuid()))
+	if r := os.Getenv("XDG_RUNTIME_DIR"); r != "" && filepath.IsAbs(r) && fits(filepath.Join(r, "recom")) {
+		d = filepath.Join(r, "recom")
+	}
+	// Mkdir, not MkdirAll: the parent may be shared (e.g. /tmp).
+	if err := os.Mkdir(d, 0o700); err != nil && !os.IsExist(err) {
+		return "", err
+	}
+	return d, checkPrivateDir(d)
+}
+
+// checkPrivateDir verifies d is a real directory owned by the current user
+// and inaccessible to anyone else.
+func checkPrivateDir(d string) error {
+	fi, err := os.Lstat(d)
+	if err != nil {
+		return err
+	}
+	if !fi.IsDir() {
+		return fmt.Errorf("%s is not a directory", d)
+	}
+	if st, ok := fi.Sys().(*syscall.Stat_t); !ok || int(st.Uid) != os.Getuid() {
+		return fmt.Errorf("%s is not owned by the current user", d)
+	}
+	if fi.Mode().Perm()&0o077 != 0 {
+		return fmt.Errorf("%s is accessible by other users (mode %04o)", d, fi.Mode().Perm())
+	}
+	return nil
 }
 
 // BaseArgs returns ssh options (everything before the destination).
@@ -82,8 +116,7 @@ func (t Target) BaseArgs() []string {
 		"-o", "ConnectTimeout=20",
 	)
 	if t.Host.UseMultiplex() && os.Getenv("RECOM_NO_MULTIPLEX") == "" {
-		d := controlDir()
-		if err := os.MkdirAll(d, 0o700); err == nil {
+		if d, err := controlDir(); err == nil {
 			a = append(a,
 				"-o", "ControlMaster=auto",
 				"-o", "ControlPath="+filepath.Join(d, "%C"),
