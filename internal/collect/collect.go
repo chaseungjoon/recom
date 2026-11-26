@@ -124,13 +124,43 @@ func SafeRel(p string) (string, error) {
 }
 
 // safeLink reports whether a symlink at rel pointing to target stays inside
-// the project (relative target that does not climb above the root).
+// the project (relative target that does not climb above the root) and does
+// not point at anything SafeRel would refuse to write, such as .git/hooks.
 func safeLink(rel, target string) bool {
 	if target == "" || strings.HasPrefix(target, "/") || strings.ContainsRune(target, 0) {
 		return false
 	}
 	j := path.Clean(path.Join(path.Dir(rel), target))
-	return j != ".." && !strings.HasPrefix(j, "../") && j != "."
+	if j == ".." || strings.HasPrefix(j, "../") || j == "." {
+		return false
+	}
+	_, err := SafeRel(j)
+	return err == nil
+}
+
+// symlinkParent returns an error if any existing parent directory of rel is
+// a symlink. os.Root follows in-root symlinks, so without this a previously
+// collected link (x -> somewhere) would redirect writes to x/... elsewhere.
+func symlinkParent(root *os.Root, rel string) error {
+	dir := filepath.Dir(rel)
+	if dir == "." {
+		return nil
+	}
+	cur := ""
+	for _, part := range strings.Split(dir, string(filepath.Separator)) {
+		cur = filepath.Join(cur, part)
+		fi, err := root.Lstat(cur)
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if fi.Mode()&fs.ModeSymlink != 0 {
+			return fmt.Errorf("parent directory %s is a symlink; refusing to write through it", filepath.ToSlash(cur))
+		}
+	}
+	return nil
 }
 
 func hashReader(r io.Reader) (string, error) {
@@ -266,6 +296,10 @@ func (c *Collector) installOne(root *os.Root, stageRel, batch string, it protoco
 		}
 	}
 
+	if err := symlinkParent(root, dest); err != nil {
+		res.Status, res.Note = Failed, err.Error()
+		return
+	}
 	if err := root.MkdirAll(filepath.Dir(dest), 0o755); err != nil && filepath.Dir(dest) != "." {
 		res.Status, res.Note = Failed, "cannot create directory: "+err.Error()
 		return
@@ -315,6 +349,10 @@ func (c *Collector) installOne(root *os.Root, stageRel, batch string, it protoco
 
 	if !install {
 		conf := filepath.Join(config.LocalDir, "conflicts", batch, dest)
+		if err := symlinkParent(root, conf); err != nil {
+			res.Status, res.Note = Failed, "conflict, and the remote version could not be staged: "+err.Error()
+			return
+		}
 		if err := root.MkdirAll(filepath.Dir(conf), 0o700); err == nil {
 			_ = root.Remove(conf)
 			if err := root.Rename(staged, conf); err == nil {
@@ -328,6 +366,10 @@ func (c *Collector) installOne(root *os.Root, stageRel, batch string, it protoco
 	}
 	if c.Force && lerr == nil {
 		bk := filepath.Join(config.LocalDir, "backups", time.Now().UTC().Format("20060102-150405"), dest)
+		if err := symlinkParent(root, bk); err != nil {
+			res.Status, res.Note = Failed, "cannot back up local copy: "+err.Error()
+			return
+		}
 		if err := root.MkdirAll(filepath.Dir(bk), 0o700); err == nil {
 			if err := root.Rename(dest, bk); err == nil {
 				res.Backup = filepath.ToSlash(bk)

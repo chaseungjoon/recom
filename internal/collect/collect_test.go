@@ -236,13 +236,16 @@ func TestCollectRejectsEscapingSymlinks(t *testing.T) {
 		{Path: "up", Type: "symlink", Link: "../outside"},
 		{Path: "a/up2", Type: "symlink", Link: "../../outside"},
 		{Path: "self", Type: "symlink", Link: "."},
+		{Path: "hooks", Type: "symlink", Link: ".git/hooks"},
+		{Path: "a/git", Type: "symlink", Link: "../.GIT"},
+		{Path: "state", Type: "symlink", Link: "x/../.recom"},
 		{Path: "a/ok", Type: "symlink", Link: "../data/file"},
 	}
 	res, err := c.Collect(context.Background(), items, "261127abcdef0123")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, r := range res[:4] {
+	for _, r := range res[:7] {
 		if r.Status != Skipped {
 			t.Errorf("%s -> %s: status %q, want skipped", r.Output.Path, r.Output.Link, r.Status)
 		}
@@ -250,7 +253,23 @@ func TestCollectRejectsEscapingSymlinks(t *testing.T) {
 			t.Errorf("%s: escaping symlink installed", r.Output.Path)
 		}
 	}
-	if res[4].Status != Collected {
-		t.Errorf("in-project symlink: status %q (%s)", res[4].Status, res[4].Note)
+	if res[7].Status != Collected {
+		t.Errorf("in-project symlink: status %q (%s)", res[7].Status, res[7].Note)
+	}
+}
+
+func TestInstallRefusesSymlinkedParent(t *testing.T) {
+	f := newFixture(t)
+	f.local(".git/hooks/README", "")
+	if err := os.Symlink(".git/hooks", filepath.Join(f.root, "x")); err != nil {
+		t.Fatal(err)
+	}
+	f.stage("x/pre-commit", "#!/bin/sh\nevil\n")
+	r := f.install(protocol.Output{Path: "x/pre-commit", Type: "file", SHA256: sum("#!/bin/sh\nevil\n")})
+	if r.Status != Failed {
+		t.Fatalf("status %q (%s), want failed", r.Status, r.Note)
+	}
+	if _, err := os.Lstat(filepath.Join(f.root, ".git/hooks/pre-commit")); !os.IsNotExist(err) {
+		t.Fatal("file was written through the symlinked parent into .git/hooks")
 	}
 }
