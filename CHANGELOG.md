@@ -3,6 +3,23 @@
 All notable changes are documented here. The project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.5] - 2026-11-27
+
+### Security
+
+- Collected outputs can no longer be redirected into `.git/hooks` (or other
+  version-control or recom metadata) through a symlink. Symlink outputs
+  pointing into those directories are skipped, and an output is never
+  written through a parent directory that is a symlink. A backend could
+  previously return `x -> .git/hooks` in one run and `x/pre-commit` in the
+  next to plant a git hook.
+
+### Changed
+
+- An output whose parent directory in the project is a symlink now fails to
+  collect and stays on the backend, instead of being written through the
+  link.
+
 ## [0.2.4] - 2026-11-27
 
 ### Security
@@ -156,6 +173,7 @@ First public release.
 - Release builds for macOS and Linux (amd64, arm64), SHA-256 checksums,
   Homebrew tap.
 
+[0.2.5]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.5
 [0.2.4]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.4
 [0.2.3]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.3
 [0.2.2]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.2
