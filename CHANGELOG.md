@@ -3,6 +3,27 @@
 All notable changes are documented here. The project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.3] - 2026-11-27
+
+### Security
+
+- The client now re-validates everything the backend helper reports, instead
+  of trusting it. This matters if code running as you on the backend replaces
+  the helper.
+  - Run ids used for staging and conflict directories must be a plain name.
+    Previously a crafted id such as `../..` could make recom download into, and
+    then delete, the whole local project.
+  - Outputs are never written into `.git/`, `.hg/` or `.svn/`. A planted git
+    hook could otherwise run code on your machine.
+  - Symlink outputs are skipped unless their target stays inside the project.
+- SSH connection-sharing sockets now only use a private directory. When the
+  cache path is too long, recom prefers `$XDG_RUNTIME_DIR` over `/tmp`.
+  Multiplexing is turned off if the directory is not a real directory owned by
+  you with no group/other access. Previously another local user on a shared
+  machine could pre-create `/tmp/recom-<uid>` and hijack sessions.
+- `SECURITY.md` now states that the helper hash check detects stale or
+  corrupted installs, not tampering.
+
 ## [0.2.2] - 2026-11-10
 
 ### Fixed
@@ -115,6 +136,7 @@ First public release.
 - Release builds for macOS and Linux (amd64, arm64), SHA-256 checksums,
   Homebrew tap.
 
+[0.2.3]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.3
 [0.2.2]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.2
 [0.2.1]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.1
 [0.2.0]: https://github.com/chaseungjoon/recom/releases/tag/v0.2.0
