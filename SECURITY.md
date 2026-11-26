@@ -24,8 +24,12 @@ What recom guarantees, and what is in scope for reports:
   uploaded nor downloaded unless you opt them in.
 - Remote output paths cannot escape the local project (`os.Root`, path validation,
   symlink checks), and local files changed during a run are never overwritten.
-- The remote helper is content-addressed by SHA-256 and verified on every
-  connection; it lives in your private `~/.local/share/recom` and needs no root.
+- The remote helper is content-addressed by SHA-256 and its reported hash is
+  checked on every connection; it lives in your private `~/.local/share/recom`
+  and needs no root. The check catches stale or corrupted installs, not
+  tampering by code running as you on the backend, so the client re-validates
+  every output itself (paths, symlink targets, and no writes into `.git/`,
+  `.hg/` or `.svn/`).
 
 Residual risks: files you explicitly include, secrets embedded in ordinary
 source files, and anything printed by your own programs. See

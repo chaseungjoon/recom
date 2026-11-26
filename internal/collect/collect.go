@@ -109,7 +109,25 @@ func SafeRel(p string) (string, error) {
 	if first == config.LocalDir || c == config.ProjectFile {
 		return "", fmt.Errorf("refusing to overwrite recom's own file %q", p)
 	}
+	// Writing into VCS metadata (e.g. .git/hooks) would let the backend run
+	// code locally, so these are refused regardless of what the helper sent.
+	for _, part := range strings.Split(c, "/") {
+		switch part {
+		case ".git", ".hg", ".svn":
+			return "", fmt.Errorf("refusing to write into version control metadata %q", p)
+		}
+	}
 	return c, nil
+}
+
+// safeLink reports whether a symlink at rel pointing to target stays inside
+// the project (relative target that does not climb above the root).
+func safeLink(rel, target string) bool {
+	if target == "" || strings.HasPrefix(target, "/") || strings.ContainsRune(target, 0) {
+		return false
+	}
+	j := path.Clean(path.Join(path.Dir(rel), target))
+	return j != ".." && !strings.HasPrefix(j, "../") && j != "."
 }
 
 func hashReader(r io.Reader) (string, error) {
@@ -170,6 +188,9 @@ func (c *Collector) Collect(ctx context.Context, items []protocol.Output, batch 
 		}
 		items[i].Path = rel
 		if it.Type == "symlink" {
+			if !safeLink(rel, it.Link) {
+				results[i].Status, results[i].Note = Skipped, fmt.Sprintf("symlink target %q leaves the project", it.Link)
+			}
 			continue
 		}
 		if it.Type != "file" {
