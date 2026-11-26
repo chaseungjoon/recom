@@ -1,6 +1,8 @@
 package sshx
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -48,5 +50,57 @@ func TestArgsAndQuoting(t *testing.T) {
 	}
 	if q := Quote("it's"); q != `'it'\''s'` {
 		t.Errorf("Quote: %s", q)
+	}
+}
+
+func TestControlDirRejectsUnsafeFallback(t *testing.T) {
+	// Short base so XDG_RUNTIME_DIR/recom fits the socket path limit.
+	// Explicit /tmp: macOS's default TMPDIR is too long.
+	base, err := os.MkdirTemp("/tmp", "rc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(base) })
+	t.Setenv("TMPDIR", base)
+	// Force the fallback: a cache path too long for a socket.
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(base, strings.Repeat("x", 100)))
+	t.Setenv("RECOM_NO_MULTIPLEX", "")
+	rt := filepath.Join(base, "rt")
+	if err := os.Mkdir(rt, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_RUNTIME_DIR", rt)
+	tg := Target{Name: "gpu", Host: &config.Host{Target: "me@gpu"}}
+
+	d := filepath.Join(rt, "recom")
+	if err := os.Mkdir(d, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(d, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if a := strings.Join(tg.BaseArgs(), " "); strings.Contains(a, "ControlPath") {
+		t.Fatalf("world-writable control dir used: %s", a)
+	}
+
+	os.Remove(d)
+	other := filepath.Join(base, "other")
+	if err := os.Mkdir(other, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(other, d); err != nil {
+		t.Fatal(err)
+	}
+	if a := strings.Join(tg.BaseArgs(), " "); strings.Contains(a, "ControlPath") {
+		t.Fatalf("symlinked control dir used: %s", a)
+	}
+
+	os.Remove(d)
+	a := strings.Join(tg.BaseArgs(), " ")
+	if !strings.Contains(a, "ControlPath="+filepath.Join(d, "%C")) {
+		t.Fatalf("private control dir not used: %s", a)
+	}
+	if fi, err := os.Lstat(d); err != nil || fi.Mode().Perm() != 0o700 {
+		t.Fatalf("control dir not created private: %v %v", fi, err)
 	}
 }
