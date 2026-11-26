@@ -1,6 +1,7 @@
 package collect
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
@@ -200,5 +201,29 @@ func TestWatchProgressReportsStagedBytes(t *testing.T) {
 	case p := <-got:
 		t.Fatalf("progress reported after stop: %v", p)
 	default:
+	}
+}
+
+func TestCollectRejectsUnsafeBatch(t *testing.T) {
+	dir := t.TempDir()
+	keep := filepath.Join(dir, "keep.txt")
+	if err := os.WriteFile(keep, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := &Collector{Root: dir}
+	items := []protocol.Output{{Path: "/abs", Type: "file"}}
+	for _, b := range []string{"", ".", "..", "../..", "../../src", "a/b", `a\b`, ".hidden"} {
+		if _, err := c.Collect(context.Background(), items, b); err == nil {
+			t.Errorf("batch %q: expected error", b)
+		}
+	}
+	if _, err := os.Stat(keep); err != nil {
+		t.Fatalf("project file removed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".recom")); !os.IsNotExist(err) {
+		t.Fatalf("staging area created for invalid batch: %v", err)
+	}
+	if _, err := c.Collect(context.Background(), items, "261127abcdef0123"); err != nil {
+		t.Fatalf("valid run id rejected: %v", err)
 	}
 }
