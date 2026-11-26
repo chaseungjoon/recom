@@ -18,7 +18,7 @@ func sum(s string) string {
 }
 
 func TestSafeRel(t *testing.T) {
-	for _, bad := range []string{"", "/etc/passwd", "../x", "a/../../x", "a/./b", "a//b", ".recom/local.toml", ".recom", ".recom.toml", "a\x00b", ".", ".git/hooks/pre-commit", "sub/.git/config", ".git", ".hg/hgrc", "x/.svn/entries"} {
+	for _, bad := range []string{"", "/etc/passwd", "../x", "a/../../x", "a/./b", "a//b", ".recom/local.toml", ".recom", ".recom.toml", "a\x00b", ".", ".git/hooks/pre-commit", "sub/.git/config", ".git", ".hg/hgrc", "x/.svn/entries", ".GIT/hooks/post-checkout", "a/.Git/config", ".HG/hgrc", ".SVN/x", ".RECOM/local.toml", ".Recom.toml"} {
 		if _, err := SafeRel(bad); err == nil {
 			t.Errorf("SafeRel(%q) accepted", bad)
 		}
